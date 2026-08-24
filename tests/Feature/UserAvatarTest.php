@@ -26,7 +26,7 @@ class UserAvatarTest extends TestCase
         $role->permissions()->attach($permission->id);
         $user->roles()->attach($role->id);
 
-        $token = auth('api')->login($user);
+        $token = $this->createTestSession($user);
 
         return [$user, $token];
     }
@@ -137,7 +137,7 @@ class UserAvatarTest extends TestCase
         Storage::fake('public');
 
         $user = User::factory()->create(['status' => 'active']);
-        $token = auth('api')->login($user);
+        $token = $this->createTestSession($user);
 
         $file = UploadedFile::fake()->image('test.jpg', 100, 100);
 

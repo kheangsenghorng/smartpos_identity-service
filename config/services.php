@@ -39,4 +39,8 @@ return [
         'url' => env('BUSINESS_SERVICE_URL', 'http://business-service:8000'),
     ],
 
+    'product' => [
+        'url' => env('PRODUCT_SERVICE_URL', 'http://product-service:8000'),
+    ],
+
 ];

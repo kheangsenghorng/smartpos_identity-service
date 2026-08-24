@@ -32,7 +32,7 @@ class RbacMiddlewareTest extends TestCase
     public function test_user_without_permission_receives_403_forbidden()
     {
         $user = User::factory()->create(['status' => 'active']);
-        $token = auth('api')->login($user);
+        $token = $this->createTestSession($user);
 
         $response = $this->withHeader('Authorization', 'Bearer ' . $token)
             ->getJson('/api/v1/users');
@@ -59,7 +59,7 @@ class RbacMiddlewareTest extends TestCase
         $role->permissions()->attach($permission->id);
         $user->roles()->attach($role->id);
 
-        $token = auth('api')->login($user);
+        $token = $this->createTestSession($user);
 
         $response = $this->withHeader('Authorization', 'Bearer ' . $token)
             ->getJson('/api/v1/users');

@@ -29,6 +29,14 @@ class OwnerPermissionSeeder extends Seeder
             'outlets.view', 'outlets.create', 'outlets.update', 'outlets.delete',
             'registers.view', 'registers.create', 'registers.update', 'registers.manage',
             'pos_devices.view', 'pos_devices.create', 'pos_devices.update', 'pos_devices.manage',
+            'products.view', 'products.create', 'products.update', 'products.delete',
+            'categories.view', 'categories.create', 'categories.update', 'categories.delete',
+            'brands.view', 'brands.create', 'brands.update', 'brands.delete',
+            'units.view', 'units.create', 'units.update', 'units.delete',
+            'product_codes.view', 'product_codes.create', 'product_codes.delete',
+            'product_prices.view', 'product_prices.create', 'product_prices.update', 'product_prices.delete',
+            'product_images.view', 'product_images.create', 'product_images.delete',
+            'labels.view', 'labels.print', 'labels.manage',
         ];
 
         $permissionIds = Permission::whereIn('code', $ownerPermissions)->pluck('id');

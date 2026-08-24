@@ -28,7 +28,7 @@ class RoleProvisionTest extends TestCase
         $adminRole = Role::where('code', 'admin')->first();
         $this->admin->roles()->attach($adminRole->id);
 
-        $this->adminToken = auth('api')->login($this->admin);
+        $this->adminToken = $this->createTestSession($this->admin);
     }
 
     public function test_can_auto_provision_standard_roles_for_a_business(): void
@@ -63,10 +63,16 @@ class RoleProvisionTest extends TestCase
         // Assert permissions are properly attached
         $this->assertTrue($owner->permissions()->where('code', 'businesses.update')->exists());
         $this->assertTrue($owner->permissions()->where('code', 'outlets.create')->exists());
+        $this->assertTrue($owner->permissions()->where('code', 'products.create')->exists());
         $this->assertTrue($storeManager->permissions()->where('code', 'pos.refund')->exists());
+        $this->assertTrue($storeManager->permissions()->where('code', 'products.update')->exists());
         $this->assertTrue($cashier->permissions()->where('code', 'pos.checkout')->exists());
         $this->assertFalse($cashier->permissions()->where('code', 'pos.refund')->exists());
+        $this->assertTrue($cashier->permissions()->where('code', 'products.view')->exists());
+        $this->assertFalse($cashier->permissions()->where('code', 'products.create')->exists());
         $this->assertTrue($inventoryClerk->permissions()->where('code', 'inventory.update')->exists());
+        $this->assertTrue($inventoryClerk->permissions()->where('code', 'products.create')->exists());
+        $this->assertTrue($inventoryClerk->permissions()->where('code', 'labels.print')->exists());
     }
 
     public function test_can_edit_and_update_provisioned_role(): void
@@ -108,7 +114,7 @@ class RoleProvisionTest extends TestCase
         $cashierRole = Role::where('code', 'cashier')->first();
         $cashier->roles()->attach($cashierRole->id);
 
-        $cashierToken = auth('api')->login($cashier);
+        $cashierToken = $this->createTestSession($cashier);
 
         $response = $this->withHeader('Authorization', 'Bearer ' . $cashierToken)
             ->postJson('/api/v1/roles/provision', [
