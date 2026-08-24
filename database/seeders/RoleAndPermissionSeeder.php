@@ -93,6 +93,51 @@ class RoleAndPermissionSeeder extends Seeder
             ['code' => 'pos_devices.create', 'name' => 'Create POS Devices', 'module' => 'pos_devices', 'description' => 'Can register new POS devices for an outlet'],
             ['code' => 'pos_devices.update', 'name' => 'Update POS Devices', 'module' => 'pos_devices', 'description' => 'Can update POS device configurations'],
             ['code' => 'pos_devices.manage', 'name' => 'Manage POS Devices', 'module' => 'pos_devices', 'description' => 'Can activate, revoke, lock, and rotate secrets for POS devices'],
+
+            // Product Service - Products & Variants
+            ['code' => 'products.view', 'name' => 'View Products', 'module' => 'products', 'description' => 'Can view products, variants, and product catalog details'],
+            ['code' => 'products.create', 'name' => 'Create Products', 'module' => 'products', 'description' => 'Can create new products and variants'],
+            ['code' => 'products.update', 'name' => 'Update Products', 'module' => 'products', 'description' => 'Can update products and variants'],
+            ['code' => 'products.delete', 'name' => 'Delete Products', 'module' => 'products', 'description' => 'Can delete products and variants'],
+
+            // Product Service - Categories
+            ['code' => 'categories.view', 'name' => 'View Categories', 'module' => 'categories', 'description' => 'Can view product categories'],
+            ['code' => 'categories.create', 'name' => 'Create Categories', 'module' => 'categories', 'description' => 'Can create product categories'],
+            ['code' => 'categories.update', 'name' => 'Update Categories', 'module' => 'categories', 'description' => 'Can update product categories'],
+            ['code' => 'categories.delete', 'name' => 'Delete Categories', 'module' => 'categories', 'description' => 'Can delete product categories'],
+
+            // Product Service - Brands
+            ['code' => 'brands.view', 'name' => 'View Brands', 'module' => 'brands', 'description' => 'Can view product brands'],
+            ['code' => 'brands.create', 'name' => 'Create Brands', 'module' => 'brands', 'description' => 'Can create product brands'],
+            ['code' => 'brands.update', 'name' => 'Update Brands', 'module' => 'brands', 'description' => 'Can update product brands'],
+            ['code' => 'brands.delete', 'name' => 'Delete Brands', 'module' => 'brands', 'description' => 'Can delete product brands'],
+
+            // Product Service - Units
+            ['code' => 'units.view', 'name' => 'View Units', 'module' => 'units', 'description' => 'Can view units of measurement'],
+            ['code' => 'units.create', 'name' => 'Create Units', 'module' => 'units', 'description' => 'Can create units of measurement'],
+            ['code' => 'units.update', 'name' => 'Update Units', 'module' => 'units', 'description' => 'Can update units of measurement'],
+            ['code' => 'units.delete', 'name' => 'Delete Units', 'module' => 'units', 'description' => 'Can delete units of measurement'],
+
+            // Product Service - Product Barcodes & Codes
+            ['code' => 'product_codes.view', 'name' => 'View Product Codes', 'module' => 'product_codes', 'description' => 'Can view barcodes and SKUs'],
+            ['code' => 'product_codes.create', 'name' => 'Create Product Codes', 'module' => 'product_codes', 'description' => 'Can create and generate barcodes and SKUs'],
+            ['code' => 'product_codes.delete', 'name' => 'Delete Product Codes', 'module' => 'product_codes', 'description' => 'Can delete barcodes and SKUs'],
+
+            // Product Service - Product Prices
+            ['code' => 'product_prices.view', 'name' => 'View Product Prices', 'module' => 'product_prices', 'description' => 'Can view pricing tiers and history'],
+            ['code' => 'product_prices.create', 'name' => 'Create Product Prices', 'module' => 'product_prices', 'description' => 'Can create product prices'],
+            ['code' => 'product_prices.update', 'name' => 'Update Product Prices', 'module' => 'product_prices', 'description' => 'Can update product prices'],
+            ['code' => 'product_prices.delete', 'name' => 'Delete Product Prices', 'module' => 'product_prices', 'description' => 'Can delete product prices'],
+
+            // Product Service - Product Images
+            ['code' => 'product_images.view', 'name' => 'View Product Images', 'module' => 'product_images', 'description' => 'Can view product gallery images'],
+            ['code' => 'product_images.create', 'name' => 'Upload Product Images', 'module' => 'product_images', 'description' => 'Can upload product images'],
+            ['code' => 'product_images.delete', 'name' => 'Delete Product Images', 'module' => 'product_images', 'description' => 'Can delete product images'],
+
+            // Product Service - Label Templates & Barcode Printing
+            ['code' => 'labels.view', 'name' => 'View Labels', 'module' => 'labels', 'description' => 'Can view label templates and print previews'],
+            ['code' => 'labels.print', 'name' => 'Print Barcode Labels', 'module' => 'labels', 'description' => 'Can print product barcode labels'],
+            ['code' => 'labels.manage', 'name' => 'Manage Label Templates', 'module' => 'labels', 'description' => 'Can create, update, and delete label templates'],
         ];
 
         foreach ($permissions as $permissionData) {
@@ -133,6 +178,14 @@ class RoleAndPermissionSeeder extends Seeder
                     'outlets.view', 'outlets.create', 'outlets.update', 'outlets.delete',
                     'registers.view', 'registers.create', 'registers.update', 'registers.manage',
                     'pos_devices.view', 'pos_devices.create', 'pos_devices.update', 'pos_devices.manage',
+                    'products.view', 'products.create', 'products.update', 'products.delete',
+                    'categories.view', 'categories.create', 'categories.update', 'categories.delete',
+                    'brands.view', 'brands.create', 'brands.update', 'brands.delete',
+                    'units.view', 'units.create', 'units.update', 'units.delete',
+                    'product_codes.view', 'product_codes.create', 'product_codes.delete',
+                    'product_prices.view', 'product_prices.create', 'product_prices.update', 'product_prices.delete',
+                    'product_images.view', 'product_images.create', 'product_images.delete',
+                    'labels.view', 'labels.print', 'labels.manage',
                 ],
             ],
             'Store_Manager' => [
@@ -153,6 +206,14 @@ class RoleAndPermissionSeeder extends Seeder
                     'outlets.view', 'outlets.update',
                     'registers.view', 'registers.create', 'registers.update', 'registers.manage',
                     'pos_devices.view', 'pos_devices.create', 'pos_devices.update', 'pos_devices.manage',
+                    'products.view', 'products.create', 'products.update', 'products.delete',
+                    'categories.view', 'categories.create', 'categories.update', 'categories.delete',
+                    'brands.view', 'brands.create', 'brands.update', 'brands.delete',
+                    'units.view', 'units.create', 'units.update',
+                    'product_codes.view', 'product_codes.create', 'product_codes.delete',
+                    'product_prices.view', 'product_prices.create', 'product_prices.update',
+                    'product_images.view', 'product_images.create', 'product_images.delete',
+                    'labels.view', 'labels.print', 'labels.manage',
                 ],
             ],
             'Cashier' => [
@@ -164,6 +225,15 @@ class RoleAndPermissionSeeder extends Seeder
                     'pos.checkout',
                     'registers.view',
                     'pos_devices.view',
+                    'products.view',
+                    'categories.view',
+                    'brands.view',
+                    'units.view',
+                    'product_codes.view',
+                    'product_prices.view',
+                    'product_images.view',
+                    'labels.view',
+                    'labels.print',
                 ],
             ],
             'Inventory_Clerk' => [
@@ -174,6 +244,14 @@ class RoleAndPermissionSeeder extends Seeder
                     'inventory.view',
                     'inventory.update',
                     'outlets.view',
+                    'products.view', 'products.create', 'products.update',
+                    'categories.view', 'categories.create',
+                    'brands.view', 'brands.create',
+                    'units.view', 'units.create',
+                    'product_codes.view', 'product_codes.create', 'product_codes.delete',
+                    'product_prices.view',
+                    'product_images.view', 'product_images.create',
+                    'labels.view', 'labels.print',
                 ],
             ],
         ];

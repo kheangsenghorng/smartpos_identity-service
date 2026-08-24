@@ -62,6 +62,20 @@ class OwnerRoleTest extends TestCase
         $this->assertContains('roles.delete', $permissionCodes);
         $this->assertContains('user_roles.assign', $permissionCodes);
 
+        // Product Management & Catalog
+        $this->assertContains('products.view', $permissionCodes);
+        $this->assertContains('products.create', $permissionCodes);
+        $this->assertContains('products.update', $permissionCodes);
+        $this->assertContains('products.delete', $permissionCodes);
+        $this->assertContains('categories.view', $permissionCodes);
+        $this->assertContains('brands.view', $permissionCodes);
+        $this->assertContains('units.view', $permissionCodes);
+        $this->assertContains('product_codes.create', $permissionCodes);
+        $this->assertContains('product_prices.create', $permissionCodes);
+        $this->assertContains('product_images.create', $permissionCodes);
+        $this->assertContains('labels.print', $permissionCodes);
+        $this->assertContains('labels.manage', $permissionCodes);
+
         // POS Operations & Inventory
         $this->assertContains('pos.access', $permissionCodes);
         $this->assertContains('pos.checkout', $permissionCodes);
@@ -139,7 +153,7 @@ class OwnerRoleTest extends TestCase
         $admin = User::factory()->create(['status' => 'active']);
         $adminRole = Role::where('code', 'admin')->first();
         $admin->roles()->attach($adminRole->id);
-        $adminToken = auth('api')->login($admin);
+        $adminToken = $this->createTestSession($admin);
 
         $response = $this->withHeader('Authorization', 'Bearer ' . $adminToken)
             ->postJson('/api/v1/users', [
@@ -170,7 +184,7 @@ class OwnerRoleTest extends TestCase
         $admin = User::factory()->create(['status' => 'active']);
         $adminRole = Role::where('code', 'admin')->first();
         $admin->roles()->attach($adminRole->id);
-        $adminToken = auth('api')->login($admin);
+        $adminToken = $this->createTestSession($admin);
 
         $businessUuid = (string) \Illuminate\Support\Str::uuid();
 

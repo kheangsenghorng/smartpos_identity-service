@@ -383,6 +383,8 @@ class AuthController extends Controller
 
         $accessToken = $guard
             ->claims([
+                'iss' => 'smartpos-auth-service',
+                'aud' => 'smartpos-api',
                 /*
                 |--------------------------------------------------------------------------
                 | Session
@@ -942,6 +944,8 @@ class AuthController extends Controller
 
         $accessToken = $guard
             ->claims([
+                'iss' => 'smartpos-auth-service',
+                'aud' => 'smartpos-api',
                 'sid' =>
                     $session->uuid,
 

@@ -46,7 +46,7 @@ return [
         |
         */
 
-        'public' => env('JWT_PUBLIC_KEY'),
+        'public' => env('JWT_PUBLIC_KEY') ?: 'file://' . storage_path('certs/jwt-rsa-2048-public.pem'),
 
         /*
         |--------------------------------------------------------------------------
@@ -59,7 +59,7 @@ return [
         |
         */
 
-        'private' => env('JWT_PRIVATE_KEY'),
+        'private' => env('JWT_PRIVATE_KEY') ?: 'file://' . storage_path('certs/jwt-rsa-2048-private.pem'),
 
         /*
         |--------------------------------------------------------------------------
@@ -99,9 +99,9 @@ return [
 
     /*
     | IDN-02 FIX: Enforce that all JWT tokens must contain the 'sid' claim
-    | to be accepted by session-guarded endpoints. Set to true in production.
+    | to be accepted by session-guarded endpoints. Enabled by default for security.
     */
-    'require_session_claim' => env('JWT_REQUIRE_SESSION_CLAIM', false),
+    'require_session_claim' => env('JWT_REQUIRE_SESSION_CLAIM', true),
 
     /*
     |--------------------------------------------------------------------------

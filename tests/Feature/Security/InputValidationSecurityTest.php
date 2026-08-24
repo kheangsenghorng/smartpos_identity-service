@@ -35,7 +35,7 @@ class InputValidationSecurityTest extends TestCase
         }
 
         $user->roles()->attach($role->id);
-        $token = auth('api')->login($user);
+        $token = $this->createTestSession($user);
 
         return [$user, $token];
     }
