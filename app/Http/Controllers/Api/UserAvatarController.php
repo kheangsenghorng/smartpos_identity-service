@@ -39,7 +39,7 @@ class UserAvatarController extends Controller
             'message' => 'Avatar updated successfully.',
             'data' => [
                 'avatar' => $path,
-                'avatar_url' => Storage::disk('public')->url($path),
+                'avatar_url' => Storage::disk(config('filesystems.default', 'public'))->url($path),
             ],
         ]);
     }

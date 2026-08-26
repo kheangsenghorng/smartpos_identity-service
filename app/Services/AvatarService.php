@@ -11,16 +11,25 @@ use RuntimeException;
 class AvatarService
 {
     /**
+     * Resolve the active storage disk.
+     */
+    public function disk(?string $disk = null): string
+    {
+        return $disk ?: config('filesystems.default', 'public');
+    }
+
+    /**
      * Process and store avatar image file as WebP format.
      * Accepts JPEG, PNG, GIF, or WebP uploaded files.
      */
     public function uploadAvatar(
         User $user,
         UploadedFile $file,
-        string $disk = 'public',
+        ?string $disk = null,
         int $quality = 80
     ): string {
-        $this->deleteAvatarFile($user, $disk);
+        $activeDisk = $this->disk($disk);
+        $this->deleteAvatarFile($user, $activeDisk);
 
         $content = file_get_contents($file->getRealPath());
         if ($content === false) {
@@ -46,7 +55,7 @@ class AvatarService
         }
 
         $path = 'avatars/' . Str::uuid() . '.webp';
-        Storage::disk($disk)->put($path, $webpContent);
+        Storage::disk($activeDisk)->put($path, $webpContent);
 
         $user->update([
             'avatar' => $path,
@@ -58,9 +67,10 @@ class AvatarService
     /**
      * Remove existing avatar file and clear database attribute.
      */
-    public function removeAvatar(User $user, string $disk = 'public'): bool
+    public function removeAvatar(User $user, ?string $disk = null): bool
     {
-        $this->deleteAvatarFile($user, $disk);
+        $activeDisk = $this->disk($disk);
+        $this->deleteAvatarFile($user, $activeDisk);
 
         $user->update([
             'avatar' => null,
@@ -72,10 +82,11 @@ class AvatarService
     /**
      * Helper to delete physical avatar file if exists.
      */
-    protected function deleteAvatarFile(User $user, string $disk = 'public'): void
+    protected function deleteAvatarFile(User $user, ?string $disk = null): void
     {
-        if ($user->avatar && Storage::disk($disk)->exists($user->avatar)) {
-            Storage::disk($disk)->delete($user->avatar);
+        $activeDisk = $this->disk($disk);
+        if ($user->avatar && Storage::disk($activeDisk)->exists($user->avatar)) {
+            Storage::disk($activeDisk)->delete($user->avatar);
         }
     }
 }

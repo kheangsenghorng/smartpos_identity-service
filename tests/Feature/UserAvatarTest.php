@@ -33,7 +33,8 @@ class UserAvatarTest extends TestCase
 
     public function test_user_avatar_upload_converts_jpeg_to_webp_and_saves()
     {
-        Storage::fake('public');
+        $disk = config('filesystems.default', 'public');
+        Storage::fake($disk);
 
         [$user, $token] = $this->createAuthorizedUser('users.update');
 
@@ -54,10 +55,10 @@ class UserAvatarTest extends TestCase
         $this->assertNotNull($user->avatar);
         $this->assertStringEndsWith('.webp', $user->avatar);
 
-        Storage::disk('public')->assertExists($user->avatar);
+        Storage::disk($disk)->assertExists($user->avatar);
 
         // Verify the stored file is actually a valid WebP image
-        $storedContent = Storage::disk('public')->get($user->avatar);
+        $storedContent = Storage::disk($disk)->get($user->avatar);
         $image = @imagecreatefromstring($storedContent);
         $this->assertNotFalse($image);
         imagedestroy($image);
@@ -65,7 +66,8 @@ class UserAvatarTest extends TestCase
 
     public function test_user_avatar_upload_converts_png_to_webp_and_saves()
     {
-        Storage::fake('public');
+        $disk = config('filesystems.default', 'public');
+        Storage::fake($disk);
 
         [$user, $token] = $this->createAuthorizedUser('users.update');
 
@@ -80,12 +82,13 @@ class UserAvatarTest extends TestCase
 
         $user->refresh();
         $this->assertStringEndsWith('.webp', $user->avatar);
-        Storage::disk('public')->assertExists($user->avatar);
+        Storage::disk($disk)->assertExists($user->avatar);
     }
 
     public function test_user_avatar_upload_fails_for_non_image_files()
     {
-        Storage::fake('public');
+        $disk = config('filesystems.default', 'public');
+        Storage::fake($disk);
 
         [$user, $token] = $this->createAuthorizedUser('users.update');
 
@@ -102,7 +105,8 @@ class UserAvatarTest extends TestCase
 
     public function test_user_avatar_deletion_removes_file_and_clears_attribute()
     {
-        Storage::fake('public');
+        $disk = config('filesystems.default', 'public');
+        Storage::fake($disk);
 
         [$user, $token] = $this->createAuthorizedUser('users.update');
 
@@ -113,7 +117,7 @@ class UserAvatarTest extends TestCase
 
         $user->refresh();
         $avatarPath = $user->avatar;
-        Storage::disk('public')->assertExists($avatarPath);
+        Storage::disk($disk)->assertExists($avatarPath);
 
         $deleteResponse = $this->withHeader('Authorization', 'Bearer ' . $token)
             ->deleteJson("/api/v1/users/{$user->uuid}/avatar");
@@ -129,12 +133,13 @@ class UserAvatarTest extends TestCase
 
         $user->refresh();
         $this->assertNull($user->avatar);
-        Storage::disk('public')->assertMissing($avatarPath);
+        Storage::disk($disk)->assertMissing($avatarPath);
     }
 
     public function test_avatar_upload_requires_users_update_permission()
     {
-        Storage::fake('public');
+        $disk = config('filesystems.default', 'public');
+        Storage::fake($disk);
 
         $user = User::factory()->create(['status' => 'active']);
         $token = $this->createTestSession($user);
