@@ -22,10 +22,10 @@
 | **Authentication Guard** | JWT Auth | `php-open-source-saver/jwt-auth` v2.9 | Bearer token authentication, token refresh & blacklist |
 | **Relational Database** | MySQL | `8.4` (InnoDB, utf8mb4) | Primary persistent data store |
 | **In-Memory Cache & Queue**| Redis | `8.0` (`predis` / `phpredis`) | High-performance RBAC permission caching, rate limiting & token store |
-| **Media & Image Engine** | Intervention Image | `v3.x` (GD Driver) | WebP image conversion, resizing, and avatar management |
+| **Media & Image Engine** | Intervention Image & MinIO S3 | `v3.x` (GD Driver) + `league/flysystem-aws-s3-v3` | WebP image conversion, S3 distributed object storage, and avatar management |
 | **API Documentation** | Dedoc Scramble | `v0.12+` | Automated OpenAPI documentation served at `/docs/identity` |
-| **Infrastructure** | Docker & Docker Compose | Containerized Multi-Service | Orchestrates `app` (PHP 8.3/Nginx), `db` (MySQL 8.4), `redis` (Redis 8), and `phpmyadmin` |
-| **Testing Framework** | PHPUnit | `11.x` | 73 automated unit, feature, and pentest security tests (282 assertions) |
+| **Infrastructure** | Docker & Docker Compose | Containerized Multi-Service | Orchestrates `app` (PHP 8.3/Nginx), `db` (MySQL 8.4), `redis` (Redis 8), `phpmyadmin`, and shared `minio` S3 |
+| **Testing Framework** | PHPUnit | `11.x` | 88 automated unit, feature, and pentest security tests (392 assertions) — 100% Passing |
 
 ---
 
@@ -35,9 +35,9 @@
 +-------------------------------------------------------------------+
 |                        COMPLETION METRICS                         |
 +-------------------------------------------------------------------+
-| Total Planned Tasks / Roadmap Items : 20 Tasks                    |
-| Completed Tasks                      : 14 Tasks (70.0%) ✅        |
-| In-Progress / Pending Tasks          : 6 Tasks  (30.0%) 📋        |
+| Total Planned Tasks / Roadmap Items : 21 Tasks                    |
+| Completed Tasks                      : 16 Tasks (76.2%) ✅        |
+| In-Progress / Pending Tasks          : 5 Tasks  (23.8%) 📋        |
 +-------------------------------------------------------------------+
 ```
 
