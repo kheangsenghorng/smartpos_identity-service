@@ -2,12 +2,15 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use Dedoc\Scramble\Scramble;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -16,7 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->configureJwtKeys();
     }
 
     /**
@@ -24,6 +27,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Gate::define('viewApiDocs', function (?User $user = null): bool {
+            return true;
+        });
+
         Scramble::configure()
             ->expose(
                 ui: '/docs/identity',
@@ -34,76 +41,173 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
+     * Load RS256 JWT keys from mounted Docker secret files.
+     */
+    protected function configureJwtKeys(): void
+    {
+        if (config('jwt.algo') !== 'RS256') {
+            return;
+        }
+
+        $privatePath = config('jwt.keys.private');
+        $publicPath = config('jwt.keys.public');
+
+        if (!$privatePath || !is_readable($privatePath)) {
+            throw new RuntimeException(
+                'JWT private key is missing or unreadable.'
+            );
+        }
+
+        if (!$publicPath || !is_readable($publicPath)) {
+            throw new RuntimeException(
+                'JWT public key is missing or unreadable.'
+            );
+        }
+
+        $privateKey = file_get_contents($privatePath);
+        $publicKey = file_get_contents($publicPath);
+
+        if ($privateKey === false || trim($privateKey) === '') {
+            throw new RuntimeException(
+                'Unable to load JWT private key.'
+            );
+        }
+
+        if ($publicKey === false || trim($publicKey) === '') {
+            throw new RuntimeException(
+                'Unable to load JWT public key.'
+            );
+        }
+
+        if (!str_contains($privateKey, '-----BEGIN')) {
+            throw new RuntimeException(
+                'JWT private key is not valid PEM data.'
+            );
+        }
+
+        if (!str_contains($publicKey, '-----BEGIN')) {
+            throw new RuntimeException(
+                'JWT public key is not valid PEM data.'
+            );
+        }
+
+        config([
+            'jwt.keys.private' => $privateKey,
+            'jwt.keys.public' => $publicKey,
+            'jwt.keys.passphrase' => config('jwt.keys.passphrase') ?: null,
+        ]);
+    }
+
+    /**
      * Configure application rate limiters.
      */
     protected function configureRateLimiting(): void
     {
-        // Multi-dimensional login rate limiter: keyed by (account + IP) with global IP ceiling
         RateLimiter::for('login', function (Request $request) {
-            $account = Str::lower(trim((string) ($request->input('login') ?? $request->input('email') ?? $request->input('username') ?? '')));
+            $account = Str::lower(trim((string) (
+                $request->input('login')
+                ?? $request->input('email')
+                ?? $request->input('username')
+                ?? ''
+            )));
 
             return [
-                Limit::perMinute(10)->by($account . '|' . $request->ip())->response(function () {
-                    return response()->json([
-                        'message' => 'Too many login attempts for this account. Please try again in 1 minute.',
-                    ], 429);
-                }),
-                Limit::perMinute(60)->by($request->ip()),
+                Limit::perMinute(10)
+                    ->by($account . '|' . $request->ip())
+                    ->response(function () {
+                        return response()->json([
+                            'message' =>
+                                'Too many login attempts for this account. Please try again in 1 minute.',
+                        ], 429);
+                    }),
+
+                Limit::perMinute(60)
+                    ->by($request->ip())
+                    ->response(function () {
+                        return response()->json([
+                            'message' =>
+                                'Too many login requests from this IP address.',
+                        ], 429);
+                    }),
             ];
         });
 
-        // Registration rate limiter
         RateLimiter::for('register', function (Request $request) {
-            return Limit::perMinute(5)->by($request->ip())->response(function () {
-                return response()->json([
-                    'message' => 'Too many registration requests. Please try again later.',
-                ], 429);
-            });
+            return Limit::perMinute(5)
+                ->by($request->ip())
+                ->response(function () {
+                    return response()->json([
+                        'message' =>
+                            'Too many registration requests. Please try again later.',
+                    ], 429);
+                });
         });
 
-        // Token refresh rate limiter
         RateLimiter::for('refresh', function (Request $request) {
-            return Limit::perMinute(20)->by($request->ip())->response(function () {
-                return response()->json([
-                    'message' => 'Too many token refresh requests.',
-                ], 429);
-            });
+            return Limit::perMinute(20)
+                ->by($request->ip())
+                ->response(function () {
+                    return response()->json([
+                        'message' =>
+                            'Too many token refresh requests.',
+                    ], 429);
+                });
         });
 
-        // Password reset OTP generation: keyed by (email + IP)
         RateLimiter::for('otp_send', function (Request $request) {
-            $email = Str::lower(trim((string) $request->input('email', '')));
+            $email = Str::lower(
+                trim((string) $request->input('email', ''))
+            );
 
             return [
-                Limit::perMinute(5)->by($email . '|' . $request->ip())->response(function () {
-                    return response()->json([
-                        'message' => 'Too many password reset requests for this email. Please try again later.',
-                    ], 429);
-                }),
-                Limit::perMinute(30)->by($request->ip()),
+                Limit::perMinute(5)
+                    ->by($email . '|' . $request->ip())
+                    ->response(function () {
+                        return response()->json([
+                            'message' =>
+                                'Too many password reset requests for this email. Please try again later.',
+                        ], 429);
+                    }),
+
+                Limit::perMinute(30)
+                    ->by($request->ip())
+                    ->response(function () {
+                        return response()->json([
+                            'message' =>
+                                'Too many OTP requests from this IP address.',
+                        ], 429);
+                    }),
             ];
         });
 
-        // OTP verification attempts: keyed by (email + IP)
         RateLimiter::for('otp_verify', function (Request $request) {
-            $email = Str::lower(trim((string) $request->input('email', '')));
+            $email = Str::lower(
+                trim((string) $request->input('email', ''))
+            );
 
-            return Limit::perMinute(10)->by($email . '|' . $request->ip())->response(function () {
-                return response()->json([
-                    'message' => 'Too many verification attempts. Please try again later.',
-                ], 429);
-            });
+            return Limit::perMinute(10)
+                ->by($email . '|' . $request->ip())
+                ->response(function () {
+                    return response()->json([
+                        'message' =>
+                            'Too many verification attempts. Please try again later.',
+                    ], 429);
+                });
         });
 
-        // Password reset submission: keyed by (email + IP)
         RateLimiter::for('otp_reset', function (Request $request) {
-            $email = Str::lower(trim((string) $request->input('email', '')));
+            $email = Str::lower(
+                trim((string) $request->input('email', ''))
+            );
 
-            return Limit::perMinute(5)->by($email . '|' . $request->ip())->response(function () {
-                return response()->json([
-                    'message' => 'Too many password reset submissions. Please try again later.',
-                ], 429);
-            });
+            return Limit::perMinute(5)
+                ->by($email . '|' . $request->ip())
+                ->response(function () {
+                    return response()->json([
+                        'message' =>
+                            'Too many password reset submissions. Please try again later.',
+                    ], 429);
+                });
         });
     }
 }

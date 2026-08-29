@@ -1,19 +1,22 @@
 services:
 
-  # ==========================================
-  # Identity Laravel
-  # ==========================================
   identity-service:
     build:
       context: .
       dockerfile: Dockerfile
 
-    ports:
-      - "8001:8000"
+    container_name: smartpos-identity-service
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    expose:
+      - "8000"
 
     volumes:
-      - .:/var/www/html
-      - identity-vendor:/var/www/html/vendor
+      - /opt/smartpos/secrets/identity-jwt:/run/secrets/identity-jwt:ro
 
     depends_on:
       identity-mysql:
@@ -22,17 +25,20 @@ services:
       identity-redis:
         condition: service_healthy
 
-    restart: unless-stopped
-
     networks:
-      - identity-network
-      - identity-smartpos-network
+      identity-network:
 
-  # ==========================================
-  # Identity MySQL
-  # ==========================================
+      identity-smartpos-network:
+        aliases:
+          - identity-service
+
+
   identity-mysql:
     image: mysql:8.4
+
+    container_name: smartpos-identity-mysql
+
+    restart: unless-stopped
 
     environment:
       MYSQL_DATABASE: ${DB_DATABASE}
@@ -40,61 +46,75 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
 
-    ports:
-      - "127.0.0.1:3307:3306"
-
     volumes:
       - identity-mysql-data:/var/lib/mysql
 
     healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}" ]
-      interval: 5s
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"
+        ]
+      interval: 10s
       timeout: 5s
       retries: 10
-
-    restart: unless-stopped
+      start_period: 20s
 
     networks:
       identity-network:
         aliases:
           - mysql
 
-  # ==========================================
-  # Identity Redis
-  # ==========================================
+
   identity-redis:
     image: redis:8-alpine
 
-    ports:
-      - "127.0.0.1:6380:6379"
+    container_name: smartpos-identity-redis
+
+    restart: unless-stopped
+
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD}
 
     volumes:
       - identity-redis-data:/data
 
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 5s
-      timeout: 3s
+      test:
+        [
+          "CMD-SHELL",
+          "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"
+        ]
+      interval: 10s
+      timeout: 5s
       retries: 10
-
-    restart: unless-stopped
+      start_period: 5s
 
     networks:
       identity-network:
         aliases:
           - redis
 
-  # ==========================================
-  # Identity phpMyAdmin
-  # ==========================================
+
   identity-phpmyadmin:
     image: phpmyadmin:5
+
+    container_name: smartpos-identity-phpmyadmin
+
+    restart: unless-stopped
 
     ports:
       - "127.0.0.1:8081:80"
 
     environment:
-      PMA_HOST: mysql
+      PMA_HOST: identity-mysql
       PMA_PORT: 3306
       UPLOAD_LIMIT: 64M
 
@@ -102,30 +122,27 @@ services:
       identity-mysql:
         condition: service_healthy
 
-    restart: unless-stopped
-
     networks:
       - identity-network
+      - identity-admin-network
 
-# ==========================================
-# Networks
-# ==========================================
+
 networks:
 
   identity-network:
+    driver: bridge
+    internal: true
+
+  identity-admin-network:
     driver: bridge
 
   identity-smartpos-network:
     name: smartpos-network
     external: true
 
-# ==========================================
-# Volumes
-# ==========================================
+
 volumes:
 
   identity-mysql-data:
 
   identity-redis-data:
-
-  identity-vendor:
