@@ -1,53 +1,79 @@
-name: CD - Deploy to VPS
+name: Deploy Identity Service
 
 on:
   push:
     branches:
       - master
-      - main
-  workflow_dispatch:
 
 jobs:
   deploy:
-    name: Deploy to Production VPS
     runs-on: ubuntu-latest
+
+    # IMPORTANT: matches your GitHub Environment name
+    environment: VPS_HOST
+
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy to VPS via SSH
+      - name: Deploy Identity Service
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          port: ${{ secrets.VPS_SSH_PORT }}
+
           script_stop: true
+          command_timeout: 10m
+
           script: |
-            echo "=============================================="
-            echo "🚀 Starting Automated Deployment: Identity Service"
-            echo "=============================================="
-            
-            # Navigate to workspace
-            if [ -d "/var/www/smartpos" ]; then
-              cd /var/www/smartpos
-              
-              # If central deploy.sh exists, use it
-              if [ -f "deploy.sh" ]; then
-                chmod +x deploy.sh
-                ./deploy.sh identity
-              else
-                cd identity-service
-                git pull origin master || git pull origin main
-                docker compose up -d --build
-                docker compose exec -T identity-service php artisan migrate --force
-                docker compose exec -T identity-service php artisan optimize
-              fi
-            else
-              echo "❌ Error: /var/www/smartpos directory not found on VPS."
-              exit 1
+            set -e
+
+            echo "============================================"
+            echo "🚀 SmartPOS Identity Deployment"
+            echo "============================================"
+
+            cd /opt/smartpos/identity-service
+
+            echo "💾 Backup database"
+            if [ -x /opt/smartpos/backups/scripts/backup-identity-db.sh ]; then
+              /opt/smartpos/backups/scripts/backup-identity-db.sh
             fi
-            
-            echo "=============================================="
-            echo "✅ Identity Service Deployment Completed!"
-            echo "=============================================="
+
+            echo "⬇️ Pull latest code"
+            git fetch origin master
+            git reset --hard origin/master
+
+            echo "🐳 Build containers"
+            docker compose build identity-service
+
+            echo "🚀 Start services"
+            docker compose up -d \
+              identity-mysql \
+              identity-redis \
+              identity-service
+
+            echo "⏳ Wait for application"
+            sleep 8
+
+            echo "🗄 Run migrations"
+            docker compose exec -T identity-service \
+              php artisan migrate --force
+
+            echo "🧹 Clear cache"
+            docker compose exec -T identity-service \
+              php artisan optimize:clear
+
+            echo "📋 Status"
+            docker compose ps
+
+            echo "✅ Deployment complete"
+
+      - name: Health Check
+        run: |
+          curl \
+            --fail \
+            --retry 5 \
+            --retry-delay 5 \
+            https://smartpos-api.servicefixit.me/api/v1/identity/health
