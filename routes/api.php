@@ -20,6 +20,21 @@ Route::prefix('v1')->group(function () {
         ]);
     });
 
+    // Process Report Documentation (Protected)
+    Route::middleware('auth:api')->get('/IDENTITY_SERVICE_PROCESS_REPORT.md', function () {
+        $path = base_path('IDENTITY_SERVICE_PROCESS_REPORT.md');
+        if (!file_exists($path)) {
+            $path = base_path('SYSTEM_ARCHITECTURE.md');
+        }
+        if (!file_exists($path)) {
+            abort(404, 'Process report file not found.');
+        }
+        return response()->file($path, [
+            'Content-Type' => 'text/markdown; charset=UTF-8',
+            'Content-Disposition' => 'inline; filename="IDENTITY_SERVICE_PROCESS_REPORT.md"',
+        ]);
+    });
+
     /*
     |--------------------------------------------------------------------------
     | Authentication

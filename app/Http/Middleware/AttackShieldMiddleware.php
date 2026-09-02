@@ -28,6 +28,7 @@ class AttackShieldMiddleware
         'morfeus',
         'nessus',
         'arachni',
+        'wfuzz',
     ];
 
     /**
