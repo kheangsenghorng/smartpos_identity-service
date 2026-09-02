@@ -16,9 +16,7 @@ services:
       - "8000"
 
     volumes:
-      - .:/var/www/html
-      - identity-vendor:/var/www/html/vendor
-      - ./storage/certs:/run/secrets/identity-jwt:ro
+      - /opt/smartpos/secrets/identity-jwt:/run/secrets/identity-jwt:ro
 
     depends_on:
       identity-mysql:
@@ -72,20 +70,18 @@ services:
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
 
-    command: >
-      sh -c '
-        if [ -n "$$REDIS_PASSWORD" ] && [ "$$REDIS_PASSWORD" != "null" ]; then
-          exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
-        else
-          exec redis-server --appendonly yes
-        fi
-      '
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD}
 
     volumes:
       - identity-redis-data:/data
 
     healthcheck:
-      test: [ "CMD-SHELL", "if [ -n \"$$REDIS_PASSWORD\" ] && [ \"$$REDIS_PASSWORD\" != \"null\" ]; then redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG; else redis-cli ping | grep PONG; fi" ]
+      test: [ "CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -102,6 +98,9 @@ services:
     container_name: smartpos-identity-phpmyadmin
 
     restart: unless-stopped
+
+    profiles:
+      - tools
 
     ports:
       - "127.0.0.1:8081:80"
@@ -137,5 +136,3 @@ volumes:
   identity-mysql-data:
 
   identity-redis-data:
-
-  identity-vendor:

@@ -8,9 +8,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
-    # IMPORTANT: matches your GitHub Environment name
-    environment: VPS_HOST
+    environment:
+      name: VPS_HOST
 
     steps:
       - name: Checkout
@@ -38,18 +37,21 @@ jobs:
 
             echo "💾 Backup database"
             if [ -x /opt/smartpos/backups/scripts/backup-identity-db.sh ]; then
-              /opt/smartpos/backups/scripts/backup-identity-db.sh
+              /opt/smartpos/backups/scripts/backup-identity-db.sh || true
             fi
 
             echo "⬇️ Pull latest code"
             git fetch origin master
             git reset --hard origin/master
 
+            COMPOSE_FILE="docker-compose.yml"
+            [ -f "docker-compose.prod.yml" ] && COMPOSE_FILE="docker-compose.prod.yml"
+
             echo "🐳 Build containers"
-            docker compose build identity-service
+            docker compose -f "${COMPOSE_FILE}" build identity-service
 
             echo "🚀 Start services"
-            docker compose up -d \
+            docker compose -f "${COMPOSE_FILE}" up -d \
               identity-mysql \
               identity-redis \
               identity-service
@@ -58,15 +60,15 @@ jobs:
             sleep 8
 
             echo "🗄 Run migrations"
-            docker compose exec -T identity-service \
+            docker compose -f "${COMPOSE_FILE}" exec -T identity-service \
               php artisan migrate --force
 
             echo "🧹 Clear cache"
-            docker compose exec -T identity-service \
+            docker compose -f "${COMPOSE_FILE}" exec -T identity-service \
               php artisan optimize:clear
 
             echo "📋 Status"
-            docker compose ps
+            docker compose -f "${COMPOSE_FILE}" ps
 
             echo "✅ Deployment complete"
 
