@@ -516,6 +516,9 @@ class AuthController extends Controller
                 'avatar' =>
                     $user->avatar,
 
+                'avatar_url' =>
+                    $user->avatar_url,
+
                 'status' =>
                     $user->status,
 
@@ -1186,6 +1189,9 @@ class AuthController extends Controller
 
                 'avatar' =>
                     $user->avatar,
+
+                'avatar_url' =>
+                    $user->avatar_url,
 
                 'status' =>
                     $user->status,
