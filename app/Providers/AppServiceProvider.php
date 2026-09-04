@@ -52,20 +52,29 @@ class AppServiceProvider extends ServiceProvider
         $privatePath = config('jwt.keys.private');
         $publicPath = config('jwt.keys.public');
 
-        if (!$privatePath || !is_readable($privatePath)) {
+        // If keys are already loaded as PEM strings (e.g., from cached configuration)
+        if (is_string($privatePath) && str_contains($privatePath, '-----BEGIN') &&
+            is_string($publicPath) && str_contains($publicPath, '-----BEGIN')) {
+            return;
+        }
+
+        $privateFile = str_starts_with($privatePath ?? '', 'file://') ? substr($privatePath, 7) : $privatePath;
+        $publicFile = str_starts_with($publicPath ?? '', 'file://') ? substr($publicPath, 7) : $publicPath;
+
+        if (!$privateFile || !is_readable($privateFile)) {
             throw new RuntimeException(
                 'JWT private key is missing or unreadable.'
             );
         }
 
-        if (!$publicPath || !is_readable($publicPath)) {
+        if (!$publicFile || !is_readable($publicFile)) {
             throw new RuntimeException(
                 'JWT public key is missing or unreadable.'
             );
         }
 
-        $privateKey = file_get_contents($privatePath);
-        $publicKey = file_get_contents($publicPath);
+        $privateKey = file_get_contents($privateFile);
+        $publicKey = file_get_contents($publicFile);
 
         if ($privateKey === false || trim($privateKey) === '') {
             throw new RuntimeException(

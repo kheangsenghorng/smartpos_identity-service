@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 
@@ -36,6 +37,33 @@ class User extends Authenticatable implements JWTSubject
     protected $hidden = [
         'password',
     ];
+
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array<int, string>
+     */
+    protected $appends = [
+        'avatar_url',
+    ];
+
+    /**
+     * Get the full URL to the user's avatar image.
+     */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if (! $this->avatar) {
+            return null;
+        }
+
+        if (str_starts_with($this->avatar, 'http://') || str_starts_with($this->avatar, 'https://')) {
+            return $this->avatar;
+        }
+
+        $disk = config('filesystems.default', 'public');
+
+        return Storage::disk($disk)->url($this->avatar);
+    }
 
     protected function casts(): array
     {
