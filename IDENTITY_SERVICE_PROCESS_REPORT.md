@@ -1,9 +1,10 @@
 # SmartPOS Identity Service — System Architecture & Design Document
 
-> **Document Version:** 1.1.0  
-> **Last Updated:** August 2026  
+> **Document Version:** 1.2.0  
+> **Last Updated:** September 5, 2026  
 > **Service Name:** `smartpos/identity-service`  
 > **Repository:** SmartPOS Platform Ecosystem  
+> **Runtime Status:** 🟢 PHP 8.4-FPM + OPcache JIT (Tracing) + Redis Active
 
 ---
 
@@ -11,7 +12,7 @@
 
 **SmartPOS Identity Service** (`smartpos/identity-service`) is the foundational identity provider (IdP), authentication engine, and access control microservice for the SmartPOS retail and point-of-sale ecosystem.
 
-It provides centralized user management, JWT token-based authentication, fine-grained Role-Based Access Control (RBAC), cashier POS PIN security, device trust management, user session revocation, automated attack shield protection, OWASP security headers, and security audit logging.
+It provides centralized user management, JWT token-based authentication (RS256 & HMAC), fine-grained Role-Based Access Control (RBAC with 80 permissions), cashier POS PIN security, device trust management, user session revocation, automated attack shield protection, OWASP security headers, and security audit logging.
 
 ```
                     +-------------------------------------------------+
@@ -21,18 +22,22 @@ It provides centralized user management, JWT token-based authentication, fine-gr
                                              | HTTP / REST (v1)
                                              v
                     +-------------------------------------------------+
-                    |              API Gateway / Ingress              |
+                    |          API Gateway / Ingress (Nginx)          |
+                    |  • Gzip Compression (Level 6)                   |
+                    |  • Direct FastCGI Reverse Proxy                 |
                     +------------------------+------------------------+
-                                             |
+                                             | FastCGI (:9000)
                                              v
                     +-------------------------------------------------+
-                    |      SmartPOS Identity Service (Laravel 12)     |
+                    |      SmartPOS Identity Service (PHP 8.4-FPM)    |
+                    |   +-----------------------------------------+   |
+                    |   |  OPcache JIT Engine (Tracing Mode 64MB) |   |
                     |   +-----------------------------------------+   |
                     |   |  Security Headers & Attack Shield Guard |   |
                     |   +-----------------------------------------+   |
                     |   |  JWT Auth & Session/Device Verifier     |   |
                     |   +-----------------------------------------+   |
-                    |   |  RBAC (Users, Roles, Permissions)       |   |
+                    |   |  RBAC (80 Permissions across 5 Roles)   |   |
                     |   +-----------------------------------------+   |
                     |   |  POS Quick-PIN & Device Trust Engine    |   |
                     |   +-----------------------------------------+   |
@@ -40,7 +45,8 @@ It provides centralized user management, JWT token-based authentication, fine-gr
                                  |                       |
                                  v                       v
                     +------------------------+ +----------------------+
-                    |  MySQL 8.4 (Data Store)| | Redis 8 (Token/Cache)|
+                    |  MySQL 8.4 (Data Store)| | Redis 8 (Cache/Queue)|
+                    |  Port: 3306            | | Port: 6379 (0.51ms)  |
                     +------------------------+ +----------------------+
 ```
 
@@ -50,17 +56,19 @@ It provides centralized user management, JWT token-based authentication, fine-gr
 
 ### 2.1 Technology Stack
 
-| Layer | Component | Technology / Library |
-| :--- | :--- | :--- |
-| **Runtime Environment** | Language & Engine | PHP 8.3+ |
-| **Framework** | Web Framework | Laravel 12.x / 13.x |
-| **Authentication** | Token Engine | `php-open-source-saver/jwt-auth` v2.9 |
-| **API Documentation** | OpenAPI Generator | Dedoc Scramble (`/docs/api`) |
-| **Primary Relational DB** | Storage & Persistence | MySQL 8.4 (InnoDB, UTF8mb4) |
-| **Caching & Session DB** | Cache & Token Blacklist | Redis 8 |
-| **Media & Image Engine** | Image Processing & Storage | `Intervention Image` (GD Driver) & WebP Disk Storage |
-| **Security Shields** | Threat & Bot Filtering | Custom Middleware Pipeline (OWASP Headers, AttackShield, SanitizeInput) |
-| **Containerization** | Infrastructure | Docker & Docker Compose |
+| Layer | Component | Technology / Library | Status |
+| :--- | :--- | :--- | :---: |
+| **Runtime Environment** | Language & FastCGI Engine | **PHP 8.4-FPM** (Multi-worker pool, `clear_env=no`) | 🟢 Active |
+| **Code Accelerator** | OPcache & JIT | **OPcache JIT Tracing** (`opcache.jit=tracing`, `buffer_size=64M`) | 🟢 Active |
+| **Framework** | Web Framework | Laravel 12.x / 13.x | 🟢 Active |
+| **Authentication** | Token Engine | `php-open-source-saver/jwt-auth` v2.9 & RS256/HMAC | 🟢 Active |
+| **API Documentation** | OpenAPI Generator | Dedoc Scramble (`/docs/api`, `/docs/identity`) | 🟢 Active |
+| **Primary Relational DB** | Storage & Persistence | MySQL 8.4 (InnoDB, UTF8mb4) | 🟢 Active |
+| **Caching & Session DB** | In-Memory Cache & Token Store | Redis 8 (`CACHE_STORE=redis`, `phpredis` driver, ~0.51ms) | 🟢 Active |
+| **Asynchronous Queues** | Queue Subsystem | Redis Queue (`QUEUE_CONNECTION=redis`) | 🟢 Active |
+| **Media & Image Engine** | Image Processing & Storage | MinIO S3 Object Storage + WebP Conversion | 🟢 Active |
+| **Security Shields** | Threat & Bot Filtering | Custom Pipeline: OWASP Headers, AttackShield, SanitizeInput | 🟢 Active |
+| **Containerization** | Infrastructure | Docker & Docker Compose (FastCGI Port 9000, Socket Healthcheck) | 🟢 Active |
 
 ---
 
@@ -320,30 +328,40 @@ All endpoints are hosted under prefix `/api/v1`.
 
 ## 6. Containerization & Deployment Architecture
 
-The application is containerized using Docker & Docker Compose:
+The service is fully containerized with PHP 8.4-FPM and directly connected to the unified SmartPOS Docker network:
 
 ```
                           +-----------------------------------+
-                          |        Docker Container Network   |
-                          |        (smartpos-identity-net)     |
+                          |      SmartPOS API Gateway         |
+                          |      (Direct FastCGI Proxy)       |
                           +-----------------+-----------------+
-                                            |
-        +-----------------------------------+-----------------------------------+
-        |                                   |                                   |
-        v                                   v                                   v
-+---------------+                   +---------------+                   +---------------+
-|   app (PHP)   |                   |  db (MySQL)   |                   | redis (Cache) |
-| Port: 8001    |                   | Port: 3307    |                   | Port: 6380    |
-+---------------+                   +---------------+                   +---------------+
-        |                                   |
-        +------------------+----------------+
-                           |
-                           v
-                   +---------------+
-                   |  phpMyAdmin   |
-                   | Port: 8081    |
-                   +---------------+
+                                            | FastCGI (:9000)
+                                            v
+                          +-----------------------------------+
+                          |      smartpos-identity-service    |
+                          |      • PHP 8.4-FPM (Port: 9000)   |
+                          |      • OPcache JIT Tracing (64MB) |
+                          |      • FastCGI Socket Healthcheck |
+                          +--------+----------------+---------+
+                                   |                |
+                +------------------+                +------------------+
+                |                                                      |
+                v                                                      v
+     +--------------------+                                 +--------------------+
+     |   smartpos-db      |                                 |   smartpos-redis   |
+     |   MySQL 8.4        |                                 |   Redis 8 Cache    |
+     |   Port: 3306       |                                 |   Port: 6379       |
+     +--------------------+                                 +--------------------+
 ```
+
+### Production Hardening & Healthcheck:
+- **FastCGI Daemon Mode:** Runs `php-fpm -F` as PID 1 in the foreground.
+- **Worker Configuration:** Dynamic process manager (`pm = dynamic`, `pm.max_children = 25`, `pm.start_servers = 4`).
+- **Environment Isolation:** Configured `clear_env = no` ensuring all container environment variables are injected into Laravel worker processes.
+- **Healthcheck Probe:** Utilizes FastCGI socket polling:
+  ```bash
+  php -r "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"
+  ```
 
 ---
 
@@ -351,17 +369,23 @@ The application is containerized using Docker & Docker Compose:
 
 ### 7.1 ✅ Completed Milestones
 
+- [x] **High-Performance PHP 8.4-FPM & JIT Migration:** Replaced single-threaded `artisan serve` with multi-worker PHP-FPM (`max_children=25`) and OPcache JIT tracing mode.
+- [x] **Sub-Millisecond Redis Caching:** Activated `CACHE_STORE=redis` with `phpredis` (cache lookups verified at 0.51ms).
+- [x] **Redis Asynchronous Queue:** Converted `QUEUE_CONNECTION=redis` for instantaneous non-blocking job dispatching.
+- [x] **API Gateway Direct FastCGI & Gzip:** Integrated direct FastCGI routing (`fastcgi_pass identity_service:9000`) with Level 6 JSON gzip compression.
+- [x] **Vulnerability Remediation & Pentest Verification:** 28/28 pentest tests passed; patched `league/commonmark` to 2.10.0 (0 vulnerabilities via `composer audit`).
+- [x] **MinIO S3 WebP Avatar Storage:** Integrated S3 disk storage with path-style MinIO endpoints.
 - [x] **Database Schema Foundation:** Built 13 robust migrations covering users, roles, permissions, devices, sessions, POS PINs, and login attempts.
 - [x] **Authentication Engine:** Complete JWT authentication flow using `jwt-auth`, including registration, login, token refresh, and logout.
 - [x] **Password Recovery System:** 3-step OTP-based password reset workflow with anti-enumeration protection.
-- [x] **Full RBAC System:** Implemented dynamic Roles & Permissions, including mapping models and middleware (`CheckPermission` & `CheckRole`).
+- [x] **Full RBAC System:** Implemented dynamic Roles & Permissions (80 permissions across 5 roles), including mapping models and middleware (`CheckPermission` & `CheckRole`).
 - [x] **POS Terminal PIN Engine:** Hashed PIN registration, update, and quick-verify endpoint with brute-force lockout.
 - [x] **User Avatar System:** WebP avatar conversion service (`AvatarService`), upload/delete controller (`UserAvatarController`), public storage link, and feature test suite.
 - [x] **Device Trust & Session Management:** Device tracking, trusted/blocked status management, remote session revocation APIs, and global `EnsureDeviceAndSessionActive` middleware.
 - [x] **Defense-in-Depth Pipeline:** `SecurityHeadersMiddleware`, `AttackShieldMiddleware`, `SanitizeInputMiddleware`, and constant-time login verification.
-- [x] **Automated Security Test Suite:** 67 automated test cases passing across Unit, Feature, RBAC, Pentest, and Session/Device security suites.
+- [x] **Automated Security Test Suite:** 88 automated test cases passing across Unit, Feature, RBAC, Pentest, and Session/Device security suites.
 - [x] **Multi-Container Infrastructure:** Complete Docker Compose deployment setup with MySQL 8.4, Redis 8, and phpMyAdmin integration.
-- [x] **API Auto-Documentation:** Scramble OpenAPI documentation integrated at `/docs/api`.
+- [x] **API Auto-Documentation:** Scramble OpenAPI documentation integrated at `/docs/api` and `/docs/identity`.
 
 ---
 
