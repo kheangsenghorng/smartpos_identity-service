@@ -44,6 +44,27 @@ jobs:
             git fetch origin master
             git reset --hard origin/master
 
+            echo "🔑 Ensuring JWT keys exist"
+            mkdir -p storage/certs
+            if [ ! -f storage/certs/jwt-rsa-2048-private.pem ] && [ ! -f storage/certs/private.pem ]; then
+              echo "Generating 2048-bit RSA key pair for JWT..."
+              openssl genrsa -out storage/certs/jwt-rsa-2048-private.pem 2048
+              openssl rsa -in storage/certs/jwt-rsa-2048-private.pem -pubout -out storage/certs/jwt-rsa-2048-public.pem
+              cp -f storage/certs/jwt-rsa-2048-private.pem storage/certs/private.pem
+              cp -f storage/certs/jwt-rsa-2048-public.pem storage/certs/public.pem
+              chmod 600 storage/certs/*.pem
+            else
+              [ -f storage/certs/jwt-rsa-2048-private.pem ] && [ ! -f storage/certs/private.pem ] && cp -f storage/certs/jwt-rsa-2048-private.pem storage/certs/private.pem
+              [ -f storage/certs/jwt-rsa-2048-public.pem ] && [ ! -f storage/certs/public.pem ] && cp -f storage/certs/jwt-rsa-2048-public.pem storage/certs/public.pem
+              [ -f storage/certs/private.pem ] && [ ! -f storage/certs/jwt-rsa-2048-private.pem ] && cp -f storage/certs/private.pem storage/certs/jwt-rsa-2048-private.pem
+              [ -f storage/certs/public.pem ] && [ ! -f storage/certs/jwt-rsa-2048-public.pem ] && cp -f storage/certs/public.pem storage/certs/jwt-rsa-2048-public.pem
+            fi
+
+            # Sync public key to shared secrets directory for downstream services
+            mkdir -p /opt/smartpos/secrets/identity-jwt 2>/dev/null || true
+            cp -f storage/certs/public.pem /opt/smartpos/secrets/identity-jwt/public.pem 2>/dev/null || true
+            cp -f storage/certs/jwt-rsa-2048-public.pem /opt/smartpos/secrets/identity-jwt/jwt-rsa-2048-public.pem 2>/dev/null || true
+
             COMPOSE_FILE="docker-compose.yml"
             [ -f "docker-compose.prod.yml" ] && COMPOSE_FILE="docker-compose.prod.yml"
 
