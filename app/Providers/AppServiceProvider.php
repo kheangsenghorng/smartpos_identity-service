@@ -41,7 +41,7 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * Load RS256 JWT keys from mounted Docker secret files.
+     * Load RS256 JWT keys from mounted Docker secret files or storage.
      */
     protected function configureJwtKeys(): void
     {
@@ -49,55 +49,87 @@ class AppServiceProvider extends ServiceProvider
             return;
         }
 
-        $privatePath = config('jwt.keys.private');
-        $publicPath = config('jwt.keys.public');
+        $privateConfig = config('jwt.keys.private');
+        $publicConfig = config('jwt.keys.public');
 
-        // If keys are already loaded as PEM strings (e.g., from cached configuration)
-        if (is_string($privatePath) && str_contains($privatePath, '-----BEGIN') &&
-            is_string($publicPath) && str_contains($publicPath, '-----BEGIN')) {
+        // If keys are already loaded as PEM strings (e.g., from environment or cached configuration)
+        if (is_string($privateConfig) && str_contains($privateConfig, '-----BEGIN') &&
+            is_string($publicConfig) && str_contains($publicConfig, '-----BEGIN')) {
             return;
         }
 
-        $privateFile = str_starts_with($privatePath ?? '', 'file://') ? substr($privatePath, 7) : $privatePath;
-        $publicFile = str_starts_with($publicPath ?? '', 'file://') ? substr($publicPath, 7) : $publicPath;
+        $privateCandidatePaths = array_values(array_filter([
+            $privateConfig,
+            '/run/secrets/identity-jwt/jwt-rsa-2048-private.pem',
+            '/run/secrets/identity-jwt/private.pem',
+            storage_path('certs/jwt-rsa-2048-private.pem'),
+            storage_path('certs/private.pem'),
+            '/opt/smartpos/secrets/identity-jwt/jwt-rsa-2048-private.pem',
+            '/opt/smartpos/secrets/identity-jwt/private.pem',
+        ]));
 
-        if (!$privateFile || !is_readable($privateFile)) {
-            throw new RuntimeException(
-                'JWT private key is missing or unreadable.'
-            );
+        $publicCandidatePaths = array_values(array_filter([
+            $publicConfig,
+            '/run/secrets/identity-jwt/jwt-rsa-2048-public.pem',
+            '/run/secrets/identity-jwt/public.pem',
+            storage_path('certs/jwt-rsa-2048-public.pem'),
+            storage_path('certs/public.pem'),
+            storage_path('certs/jwt-public.pem'),
+            '/opt/smartpos/secrets/identity-jwt/jwt-rsa-2048-public.pem',
+            '/opt/smartpos/secrets/identity-jwt/public.pem',
+        ]));
+
+        $privateFile = null;
+        foreach ($privateCandidatePaths as $path) {
+            $cleanPath = str_starts_with($path, 'file://') ? substr($path, 7) : $path;
+            if (is_file($cleanPath) && is_readable($cleanPath)) {
+                $privateFile = $cleanPath;
+                break;
+            }
         }
 
-        if (!$publicFile || !is_readable($publicFile)) {
-            throw new RuntimeException(
-                'JWT public key is missing or unreadable.'
-            );
+        $publicFile = null;
+        foreach ($publicCandidatePaths as $path) {
+            $cleanPath = str_starts_with($path, 'file://') ? substr($path, 7) : $path;
+            if (is_file($cleanPath) && is_readable($cleanPath)) {
+                $publicFile = $cleanPath;
+                break;
+            }
+        }
+
+        if (!$privateFile || !$publicFile) {
+            if ($this->autoGenerateJwtKeys()) {
+                return;
+            }
+
+            if ($this->app->runningInConsole()) {
+                return;
+            }
+
+            if (!$privateFile) {
+                throw new RuntimeException('JWT private key is missing or unreadable.');
+            }
+
+            throw new RuntimeException('JWT public key is missing or unreadable.');
         }
 
         $privateKey = file_get_contents($privateFile);
         $publicKey = file_get_contents($publicFile);
 
         if ($privateKey === false || trim($privateKey) === '') {
-            throw new RuntimeException(
-                'Unable to load JWT private key.'
-            );
+            throw new RuntimeException('Unable to load JWT private key.');
         }
 
         if ($publicKey === false || trim($publicKey) === '') {
-            throw new RuntimeException(
-                'Unable to load JWT public key.'
-            );
+            throw new RuntimeException('Unable to load JWT public key.');
         }
 
         if (!str_contains($privateKey, '-----BEGIN')) {
-            throw new RuntimeException(
-                'JWT private key is not valid PEM data.'
-            );
+            throw new RuntimeException('JWT private key is not valid PEM data.');
         }
 
         if (!str_contains($publicKey, '-----BEGIN')) {
-            throw new RuntimeException(
-                'JWT public key is not valid PEM data.'
-            );
+            throw new RuntimeException('JWT public key is not valid PEM data.');
         }
 
         config([
@@ -105,6 +137,58 @@ class AppServiceProvider extends ServiceProvider
             'jwt.keys.public' => $publicKey,
             'jwt.keys.passphrase' => config('jwt.keys.passphrase') ?: null,
         ]);
+    }
+
+    /**
+     * Auto-generate RSA 2048 key pair if keys are missing.
+     */
+    protected function autoGenerateJwtKeys(): bool
+    {
+        try {
+            $certsDir = storage_path('certs');
+            if (!is_dir($certsDir)) {
+                @mkdir($certsDir, 0755, true);
+            }
+
+            $privateTarget = $certsDir . '/jwt-rsa-2048-private.pem';
+            $publicTarget = $certsDir . '/jwt-rsa-2048-public.pem';
+
+            $keyPair = openssl_pkey_new([
+                'private_key_bits' => 2048,
+                'private_key_type' => OPENSSL_KEYTYPE_RSA,
+            ]);
+
+            if (!$keyPair) {
+                return false;
+            }
+
+            openssl_pkey_export($keyPair, $privateKey);
+            $keyDetails = openssl_pkey_get_details($keyPair);
+            $publicKey = $keyDetails['key'] ?? null;
+
+            if (!$privateKey || !$publicKey) {
+                return false;
+            }
+
+            if (is_dir($certsDir) && is_writable($certsDir)) {
+                @file_put_contents($privateTarget, $privateKey);
+                @file_put_contents($publicTarget, $publicKey);
+                @file_put_contents($certsDir . '/private.pem', $privateKey);
+                @file_put_contents($certsDir . '/public.pem', $publicKey);
+                @chmod($privateTarget, 0600);
+                @chmod($certsDir . '/private.pem', 0600);
+            }
+
+            config([
+                'jwt.keys.private' => $privateKey,
+                'jwt.keys.public' => $publicKey,
+                'jwt.keys.passphrase' => config('jwt.keys.passphrase') ?: null,
+            ]);
+
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /**

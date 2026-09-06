@@ -17,6 +17,7 @@ services:
 
     volumes:
       - ${JWT_SECRETS_DIR:-./storage/certs}:/run/secrets/identity-jwt:ro
+      - ${JWT_SECRETS_DIR:-./storage/certs}:/var/www/html/storage/certs:ro
 
     depends_on:
       identity-mysql:
