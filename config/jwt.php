@@ -46,7 +46,20 @@ return [
         |
         */
 
-        'public' => env('JWT_PUBLIC_KEY') ?: 'file://' . storage_path('certs/jwt-rsa-2048-public.pem'),
+        'public' => env(
+            'JWT_PUBLIC_KEY',
+            file_exists('/run/secrets/identity-jwt/jwt-rsa-2048-public.pem')
+                ? 'file:///run/secrets/identity-jwt/jwt-rsa-2048-public.pem'
+                : (file_exists('/run/secrets/identity-jwt/public.pem')
+                    ? 'file:///run/secrets/identity-jwt/public.pem'
+                    : (file_exists(storage_path('certs/jwt-rsa-2048-public.pem'))
+                        ? 'file://' . storage_path('certs/jwt-rsa-2048-public.pem')
+                        : (file_exists(storage_path('certs/public.pem'))
+                            ? 'file://' . storage_path('certs/public.pem')
+                            : (file_exists('/opt/smartpos/secrets/identity-jwt/public.pem')
+                                ? 'file:///opt/smartpos/secrets/identity-jwt/public.pem'
+                                : 'file://' . storage_path('certs/jwt-rsa-2048-public.pem')))))
+        ),
 
         /*
         |--------------------------------------------------------------------------
@@ -59,7 +72,20 @@ return [
         |
         */
 
-        'private' => env('JWT_PRIVATE_KEY') ?: 'file://' . storage_path('certs/jwt-rsa-2048-private.pem'),
+        'private' => env(
+            'JWT_PRIVATE_KEY',
+            file_exists('/run/secrets/identity-jwt/jwt-rsa-2048-private.pem')
+                ? 'file:///run/secrets/identity-jwt/jwt-rsa-2048-private.pem'
+                : (file_exists('/run/secrets/identity-jwt/private.pem')
+                    ? 'file:///run/secrets/identity-jwt/private.pem'
+                    : (file_exists(storage_path('certs/jwt-rsa-2048-private.pem'))
+                        ? 'file://' . storage_path('certs/jwt-rsa-2048-private.pem')
+                        : (file_exists(storage_path('certs/private.pem'))
+                            ? 'file://' . storage_path('certs/private.pem')
+                            : (file_exists('/opt/smartpos/secrets/identity-jwt/private.pem')
+                                ? 'file:///opt/smartpos/secrets/identity-jwt/private.pem'
+                                : 'file://' . storage_path('certs/jwt-rsa-2048-private.pem')))))
+        ),
 
         /*
         |--------------------------------------------------------------------------
