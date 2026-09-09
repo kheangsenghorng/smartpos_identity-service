@@ -19,6 +19,14 @@ Route::get(
 
 
 Route::delete(
+    '/sessions/revoked',
+    [UserSessionController::class, 'purgeRevoked']
+)->middleware(
+    'permission:sessions.revoke'
+);
+
+
+Route::delete(
     '/sessions/{userSession}',
     [UserSessionController::class, 'destroy']
 )->middleware(

@@ -32,3 +32,19 @@ Route::patch(
 )->middleware(
     'permission:devices.block'
 );
+
+
+Route::patch(
+    '/devices/{userDevice}/unblock',
+    [UserDeviceController::class, 'unblock']
+)->middleware(
+    'permission:devices.block'
+);
+
+
+Route::patch(
+    '/devices/{userDevice}/untrust',
+    [UserDeviceController::class, 'untrust']
+)->middleware(
+    'permission:devices.trust'
+);
