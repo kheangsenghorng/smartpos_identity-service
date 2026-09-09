@@ -62,4 +62,42 @@ class UserDeviceController extends Controller
 
         return $userDevice;
     }
+
+    /**
+     * Unblock a previously blocked device so it can authenticate again.
+     */
+    public function unblock(
+        UserDevice $userDevice
+    ) {
+        abort_unless(
+            $userDevice->user_id ===
+            auth('api')->id(),
+            403
+        );
+
+        $userDevice->update([
+            'is_blocked' => false
+        ]);
+
+        return $userDevice;
+    }
+
+    /**
+     * Untrust a device.
+     */
+    public function untrust(
+        UserDevice $userDevice
+    ) {
+        abort_unless(
+            $userDevice->user_id ===
+            auth('api')->id(),
+            403
+        );
+
+        $userDevice->update([
+            'is_trusted' => false
+        ]);
+
+        return $userDevice;
+    }
 }

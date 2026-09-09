@@ -51,7 +51,7 @@ class UserSessionController extends Controller
         |
         */
 
-        $sessions = UserSession::query()
+        $query = UserSession::query()
             ->select([
                 'id',
                 'uuid',
@@ -71,11 +71,20 @@ class UserSessionController extends Controller
             ->where(
                 'user_id',
                 $userId
-            )
-            ->orderByDesc(
+            );
+
+        if ($request->boolean('active_only') || $request->query('status') === 'active') {
+            $query->whereNull('revoked_at')
+                ->where(function ($q) {
+                    $q->whereNull('expires_at')
+                        ->orWhere('expires_at', '>', now());
+                });
+        }
+
+        $sessions = $query->orderByDesc(
                 'last_activity_at'
             )
-            ->paginate(30);
+            ->paginate(50);
 
         /*
         |--------------------------------------------------------------------------
@@ -203,14 +212,17 @@ class UserSessionController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Already Revoked
+        | Already Revoked -> Permanently Delete Record
         |--------------------------------------------------------------------------
         */
 
-        if ($userSession->revoked_at) {
+        if ($userSession->revoked_at || request()->boolean('permanent')) {
+            $userSession->delete();
+
             return response()->json([
-                'message' =>
-                    'Session is already revoked.',
+                'message' => 'Revoked session record deleted permanently.',
+                'session_uuid' => $userSession->uuid,
+                'deleted' => true,
             ]);
         }
 
@@ -396,6 +408,42 @@ class UserSessionController extends Controller
 
             'current_session_kept' =>
                 $exceptCurrent,
+        ]);
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Purge All Revoked Sessions
+    |--------------------------------------------------------------------------
+    |
+    | DELETE /api/v1/sessions/revoked
+    |
+    */
+
+    public function purgeRevoked(Request $request)
+    {
+        /** @var JWTGuard $guard */
+        $guard = auth('api');
+        $userId = $guard->id();
+
+        if (! $userId) {
+            return response()->json([
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        $deletedCount = UserSession::query()
+            ->where('user_id', $userId)
+            ->where(function ($q) {
+                $q->whereNotNull('revoked_at')
+                    ->orWhere('expires_at', '<', now());
+            })
+            ->delete();
+
+        return response()->json([
+            'message' => "Successfully deleted {$deletedCount} revoked sessions.",
+            'deleted_count' => $deletedCount,
         ]);
     }
 
