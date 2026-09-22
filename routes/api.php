@@ -67,6 +67,8 @@ Route::prefix('v1')->group(function () {
         require __DIR__.'/api/sessions.php';
 
         require __DIR__.'/api/login_attempts.php';
+
+        require __DIR__.'/api/security_events.php';
     });
 
 });

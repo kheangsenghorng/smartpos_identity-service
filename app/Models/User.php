@@ -191,6 +191,7 @@ class User extends Authenticatable implements JWTSubject
 
     public function clearRbacCache(): void
     {
+        $this->unsetRelation('roles');
         RbacCacheService::forgetUserCache($this);
     }
 

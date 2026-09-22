@@ -21,11 +21,23 @@ class PermissionController extends Controller
     }
     
     /**
-     * Create new permissions in batch.
+     * Create new permissions in batch (supports direct array, wrapped permissions array, or single item).
      */
     public function store(Request $request)
     {
-        $data = $request->validate([
+        $rawItems = $request->all();
+
+        // Unwrap if payload is formatted as { permissions: [...] }
+        if (isset($rawItems['permissions']) && is_array($rawItems['permissions'])) {
+            $rawItems = $rawItems['permissions'];
+        }
+
+        // If a single object was passed, wrap in array
+        if (isset($rawItems['code'])) {
+            $rawItems = [$rawItems];
+        }
+
+        $validator = \Illuminate\Support\Facades\Validator::make($rawItems, [
             '*.code' => [
                 'required',
                 'string',
@@ -33,40 +45,49 @@ class PermissionController extends Controller
                 'distinct',
                 'unique:permissions,code',
             ],
-    
             '*.name' => [
                 'required',
                 'string',
                 'max:150',
             ],
-    
             '*.module' => [
                 'nullable',
                 'string',
                 'max:100',
             ],
-    
+            '*.resource' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
+            '*.action' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
             '*.description' => [
                 'nullable',
                 'string',
                 'max:255',
             ],
         ]);
-    
+
+        $data = $validator->validate();
+
         $permissions = DB::transaction(function () use ($data) {
-    
             return collect($data)->map(function ($permission) {
                 return Permission::create([
-                    'code' => strtolower($permission['code']),
-                    'name' => $permission['name'],
-                    'module' => isset($permission['module'])
-                        ? strtolower($permission['module'])
-                        : null,
+                    'code' => strtolower(trim($permission['code'])),
+                    'name' => trim($permission['name']),
+                    'module' => isset($permission['module']) ? strtolower(trim($permission['module'])) : null,
+                    'resource' => $permission['resource'] ?? null,
+                    'action' => $permission['action'] ?? null,
                     'description' => $permission['description'] ?? null,
+                    'is_active' => true,
                 ]);
             });
         });
-    
+
         return response()->json([
             'message' => 'Permissions created successfully.',
             'count' => $permissions->count(),

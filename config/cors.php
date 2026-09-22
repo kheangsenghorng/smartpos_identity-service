@@ -40,7 +40,18 @@ return [
         '#^https?://127\.0\.0\.1:(80|8000|8080|8001|8002|8003|3000|3001|5173)$#',
     ],
 
-    'allowed_headers' => ['Content-Type', 'Authorization', 'X-Requested-With', 'X-User-Uuid', 'Accept', 'Origin'],
+    'allowed_headers' => [
+        'Content-Type',
+        'Authorization',
+        'X-Requested-With',
+        'X-User-Uuid',
+        'X-Business-Id',
+        'X-Outlet-Id',
+        'X-Device-Type',
+        'X-Platform',
+        'Accept',
+        'Origin',
+    ],
 
     'exposed_headers' => ['Retry-After', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'],
 

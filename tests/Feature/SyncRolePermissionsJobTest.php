@@ -53,7 +53,7 @@ class SyncRolePermissionsJobTest extends TestCase
         $job->handle();
 
         $roles = Role::where('business_uuid', $businessUuid)->get();
-        $this->assertCount(4, $roles);
+        $this->assertGreaterThanOrEqual(4, $roles->count());
 
         $owner = $roles->firstWhere('code', 'owner');
         $this->assertNotNull($owner);

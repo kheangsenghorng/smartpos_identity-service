@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 
 class RbacCacheService
@@ -21,13 +22,14 @@ class RbacCacheService
         $cacheKey = "user:{$user->uuid}:permission_codes";
 
         return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($user) {
+            $user->unsetRelation('roles');
             return $user->allPermissions()
                 ->pluck('code')
                 ->unique()
                 ->values()
                 ->all();
         });
-    } 
+    }
 
     /**
      * Get user's role codes using Redis cache.
@@ -37,7 +39,8 @@ class RbacCacheService
         $cacheKey = "user:{$user->uuid}:role_codes";
 
         return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($user) {
-            $user->loadMissing('roles');
+            $user->unsetRelation('roles');
+            $user->load('roles');
 
             return $user->roles
                 ->pluck('code')
@@ -109,4 +112,57 @@ class RbacCacheService
             self::forgetUserCache($user);
         }
     }
+
+    /**
+     * Get the cache version for the roles list.
+     */
+    public static function getRolesListVersion(?string $businessUuid = null): int
+    {
+        $versionKey = $businessUuid
+            ? "roles:list:business:{$businessUuid}:version"
+            : "roles:list:all:version";
+
+        return (int) Cache::get($versionKey, 1);
+    }
+
+    /**
+     * Get cached paginated roles with attached permissions, optionally filtered by business_uuid.
+     */
+    public static function getRolesWithPermissions(?string $businessUuid = null, int $perPage = 20, int $page = 1): LengthAwarePaginator
+    {
+        $version = self::getRolesListVersion($businessUuid);
+        $scope = $businessUuid ? "business:{$businessUuid}" : "all";
+        $cacheKey = "roles:list:{$scope}:v{$version}:p{$page}:l{$perPage}";
+
+        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($businessUuid, $perPage, $page) {
+            return Role::query()
+                ->with('permissions')
+                ->when(
+                    $businessUuid,
+                    fn ($q, $uuid) => $q->where('business_uuid', $uuid)
+                )
+                ->paginate(perPage: $perPage, page: $page);
+        });
+    }
+
+    /**
+     * Invalidate cached roles list for a business and globally.
+     */
+    public static function forgetRolesListCache(?string $businessUuid = null): void
+    {
+        if ($businessUuid) {
+            $businessVersionKey = "roles:list:business:{$businessUuid}:version";
+            if (! Cache::has($businessVersionKey)) {
+                Cache::put($businessVersionKey, 1, self::CACHE_TTL * 24);
+            }
+            Cache::increment($businessVersionKey);
+        }
+
+        $globalVersionKey = "roles:list:all:version";
+        if (! Cache::has($globalVersionKey)) {
+            Cache::put($globalVersionKey, 1, self::CACHE_TTL * 24);
+        }
+        Cache::increment($globalVersionKey);
+    }
 }
+

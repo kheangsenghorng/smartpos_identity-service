@@ -31,6 +31,12 @@ class AppServiceProvider extends ServiceProvider
             return true;
         });
 
+        Gate::define('viewPulse', function ($user = null): bool {
+            return in_array(optional($user)->email, [
+                //
+            ]) || app()->environment('local');
+        });
+
         Scramble::configure()
             ->expose(
                 ui: '/docs/identity',

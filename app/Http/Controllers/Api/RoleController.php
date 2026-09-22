@@ -15,14 +15,14 @@ class RoleController extends Controller
      */
     public function index(Request $request)
     {
-        return Role::query()
-            ->with('permissions')
-            ->when(
-                $request->business_uuid,
-                fn ($q, $uuid) =>
-                    $q->where('business_uuid', $uuid)
-            )
-            ->paginate(20);
+        $page = (int) $request->input('page', 1);
+        $perPage = (int) $request->input('per_page', 20);
+
+        return RbacCacheService::getRolesWithPermissions(
+            $request->business_uuid,
+            $perPage,
+            $page
+        );
     }
 
     /**
@@ -62,6 +62,8 @@ class RoleController extends Controller
             \App\Services\RbacCacheService::forgetRoleUsersCache($role);
         }
 
+        RbacCacheService::forgetRolesListCache($role->business_uuid);
+
         return $role->load('permissions');
     }
 
@@ -71,6 +73,27 @@ class RoleController extends Controller
     public function show(Role $role)
     {
         return $role->load('permissions');
+    }
+
+    /**
+     * List users assigned to this role.
+     */
+    public function users(Role $role, Request $request)
+    {
+        $query = $role->users()->latest();
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+
+        if ($request->boolean('all') || $request->input('paginate') === 'false') {
+            return response()->json([
+                'data' => $query->get(),
+            ]);
+        }
+
+        $perPage = (int) $request->input('per_page', 20);
+        return $query->paginate($perPage);
     }
 
     /**
@@ -94,6 +117,8 @@ class RoleController extends Controller
                 ],
             ])
         );
+
+        RbacCacheService::forgetRolesListCache($role->business_uuid);
 
         return $role;
     }
@@ -120,7 +145,11 @@ class RoleController extends Controller
             ], 403);
         }
 
+        $businessUuid = $role->business_uuid;
+        RbacCacheService::forgetRoleUsersCache($role);
         $role->delete();
+
+        RbacCacheService::forgetRolesListCache($businessUuid);
 
         return response()->json([
             'message' => 'Role deleted.'
@@ -163,10 +192,11 @@ class RoleController extends Controller
                 )
                 ->pluck('id');
 
-            $role->permissions()->syncWithoutDetaching($ids);
+            $role->permissions()->sync($ids);
         }
 
         RbacCacheService::forgetRoleUsersCache($role);
+        RbacCacheService::forgetRolesListCache($role->business_uuid);
 
         return $role->load('permissions');
     }
@@ -180,6 +210,7 @@ class RoleController extends Controller
         $role->permissions()->sync($ids);
 
         RbacCacheService::forgetRoleUsersCache($role);
+        RbacCacheService::forgetRolesListCache($role->business_uuid);
 
         return response()->json([
             'message' => 'All permissions attached to role successfully.',
@@ -189,7 +220,7 @@ class RoleController extends Controller
     }
 
     /**
-     * Auto-provision standard roles (Store_Manager, Cashier, Inventory_Clerk) for a business.
+     * Auto-provision standard roles for a business, optionally filtered by module.
      */
     public function provision(
         Request $request,
@@ -200,9 +231,20 @@ class RoleController extends Controller
                 'required',
                 'uuid',
             ],
+            'module' => [
+                'nullable',
+                'string',
+                'in:all,inventory,finance,pos,hr',
+            ],
         ]);
 
-        $roles = $provisioner->provisionForBusiness($data['business_uuid']);
+        $module = $data['module'] ?? null;
+        if ($module === 'all') {
+            $module = null;
+        }
+
+        $roles = $provisioner->provisionForBusiness($data['business_uuid'], $module);
+        RbacCacheService::forgetRolesListCache($data['business_uuid']);
 
         return response()->json([
             'message' => 'Standard roles provisioned successfully.',
