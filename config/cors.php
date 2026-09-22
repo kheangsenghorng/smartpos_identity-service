@@ -30,30 +30,23 @@ return [
         'http://api.smartpos.test',
         'https://api.smartpos.test',
         'https://smartpos-api.servicefixit.me',
+        'https://smartpos-docs.servicefixit.me',
+        'https://smartpos-admin.servicefixit.me',
+        'https://smartpos.servicefixit.me',
     ])),
 
     'allowed_origins_patterns' => [
         '#^https?://(api|admin|pos|app)\.smartpos\.test(:[0-9]+)?$#',
+        '#^https?://.*\.servicefixit\.me(:[0-9]+)?$#',
         '#^https?://.*\.ngrok(-free)?\.app$#',
         '#^https?://.*\.ngrok\.io$#',
         '#^https?://localhost:(80|8000|8080|8001|8002|8003|3000|3001|5173)$#',
         '#^https?://127\.0\.0\.1:(80|8000|8080|8001|8002|8003|3000|3001|5173)$#',
     ],
 
-    'allowed_headers' => [
-        'Content-Type',
-        'Authorization',
-        'X-Requested-With',
-        'X-User-Uuid',
-        'X-Business-Id',
-        'X-Outlet-Id',
-        'X-Device-Type',
-        'X-Platform',
-        'Accept',
-        'Origin',
-    ],
+    'allowed_headers' => ['*'],
 
-    'exposed_headers' => ['Retry-After', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'],
+    'exposed_headers' => ['*'],
 
     'max_age' => 86400,
 

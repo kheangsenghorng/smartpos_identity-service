@@ -25,7 +25,11 @@ class SecurityHeadersMiddleware
 
         $response->headers->set('Permissions-Policy', 'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()');
         $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-        $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
+        if ($request->is('api*') || $request->is('api/*')) {
+            $response->headers->set('Cross-Origin-Resource-Policy', 'cross-origin');
+        } else {
+            $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
+        }
 
         return $response;
     }
