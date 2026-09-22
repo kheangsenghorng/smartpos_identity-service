@@ -12,14 +12,58 @@ use Illuminate\Validation\Rules\Password;
 class UserController extends Controller
 {
     /**
-     * List paginated users with loaded roles.
+     * List users with loaded roles, with optional search, role filter, status filter, and pagination.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return User::query()
-            ->with('roles')
-            ->latest()
-            ->paginate(20);
+        $query = User::query()
+            ->with('roles');
+
+        // Filter by role code or role UUID (e.g. role=owner)
+        if ($request->filled('role')) {
+            $roleParam = (string) $request->input('role');
+            $query->whereHas('roles', function ($q) use ($roleParam) {
+                $q->where('roles.code', $roleParam)
+                    ->orWhere('roles.uuid', $roleParam);
+            });
+        } elseif ($request->filled('role_code')) {
+            $roleCode = (string) $request->input('role_code');
+            $query->whereHas('roles', function ($q) use ($roleCode) {
+                $q->where('roles.code', $roleCode);
+            });
+        }
+
+        // Filter by status (e.g. status=active)
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+
+        // Search by name, email, phone, or username
+        if ($request->filled('search')) {
+            $search = '%' . trim($request->input('search')) . '%';
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', $search)
+                    ->orWhere('email', 'like', $search)
+                    ->orWhere('phone', 'like', $search)
+                    ->orWhere('username', 'like', $search);
+            });
+        }
+
+        $query->latest();
+
+        // Support returning all results or custom per_page limit
+        if ($request->boolean('all') || $request->input('paginate') === 'false') {
+            return response()->json([
+                'data' => $query->get(),
+            ]);
+        }
+
+        $perPage = (int) $request->input('per_page', 20);
+        if ($perPage <= 0 || $perPage > 100) {
+            $perPage = 20;
+        }
+
+        return $query->paginate($perPage);
     }
 
     /**
@@ -202,6 +246,7 @@ class UserController extends Controller
         ]);
 
         $user->update($data);
+        $user->clearRbacCache();
 
         if (! empty($data['password']) || (isset($data['status']) && in_array($data['status'], ['blocked', 'inactive']))) {
             UserSession::where('user_id', $user->id)
@@ -222,6 +267,13 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
+        UserSession::where('user_id', $user->id)
+            ->whereNull('revoked_at')
+            ->update([
+                'revoked_at' => now(),
+            ]);
+
+        $user->clearRbacCache();
         $user->delete();
 
         return response()->json([

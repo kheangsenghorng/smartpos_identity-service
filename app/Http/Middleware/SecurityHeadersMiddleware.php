@@ -17,8 +17,8 @@ class SecurityHeadersMiddleware
         $response->headers->set('X-Frame-Options', 'DENY');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
-        if ($request->is('docs*') || $request->is('docs/*')) {
-            $response->headers->set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https: http:; img-src 'self' data: https:; frame-ancestors 'none';");
+        if ($request->is('docs*') || $request->is('docs/*') || $request->is('horizon*') || $request->is('telescope*') || $request->is('pulse*') || $request->is('livewire*') || $request->is('vendor*')) {
+            $response->headers->set('Content-Security-Policy', "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https: fonts.bunny.net fonts.googleapis.com; font-src 'self' https: fonts.bunny.net fonts.gstatic.com data:; connect-src 'self' https: http: ws: wss:; img-src 'self' data: https:; frame-ancestors 'none';");
         } else {
             $response->headers->set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none';");
         }

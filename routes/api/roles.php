@@ -26,6 +26,14 @@ Route::get(
 );
 
 
+Route::get(
+    '/roles/{role}/users',
+    [RoleController::class, 'users']
+)->middleware(
+    'permission:roles.view'
+);
+
+
 Route::post(
     '/roles/provision',
     [RoleController::class, 'provision']

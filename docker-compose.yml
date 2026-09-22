@@ -34,6 +34,36 @@ services:
         aliases:
           - identity-service
 
+  identity-horizon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: smartpos-identity-horizon
+
+    command: php artisan horizon
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    volumes:
+      - .:/var/www/html
+      - identity-vendor:/var/www/html/vendor
+      - ./storage/certs:/run/secrets/identity-jwt:ro
+
+    depends_on:
+      identity-mysql:
+        condition: service_healthy
+
+      identity-redis:
+        condition: service_healthy
+
+    networks:
+      identity-network:
+      identity-smartpos-network:
+
   identity-mysql:
     image: mysql:8.4
 
