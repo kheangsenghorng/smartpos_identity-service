@@ -36,6 +36,15 @@ class EnsureDeviceAndSessionActive
             ], 403);
         }
 
+        if (config('auth.require_email_verification', false) && $user->email && $user->email_verified_at === null) {
+            if (! $request->is('*/email/*') && ! $request->is('*/logout')) {
+                return response()->json([
+                    'message' => 'Your email address is not verified. Please verify your email before accessing protected resources.',
+                    'error' => 'email_not_verified',
+                ], 403);
+            }
+        }
+
         // IDN-02 FIX: Check session context claim
         $sessionUuid = null;
         try {

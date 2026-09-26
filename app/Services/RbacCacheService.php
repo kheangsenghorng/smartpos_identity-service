@@ -51,6 +51,64 @@ class RbacCacheService
     }
 
     /**
+     * Set / update user's permission codes in Redis cache directly.
+     */
+    public static function setUserPermissionCodes(User $user, ?array $permissionCodes = null): array
+    {
+        $cacheKey = "user:{$user->uuid}:permission_codes";
+
+        if ($permissionCodes === null) {
+            $user->unsetRelation('roles');
+            $permissionCodes = $user->allPermissions()
+                ->pluck('code')
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        Cache::put($cacheKey, $permissionCodes, self::CACHE_TTL);
+
+        return $permissionCodes;
+    }
+
+    /**
+     * Set / update user's role codes in Redis cache directly.
+     */
+    public static function setUserRoleCodes(User $user, ?array $roleCodes = null): array
+    {
+        $cacheKey = "user:{$user->uuid}:role_codes";
+
+        if ($roleCodes === null) {
+            $user->unsetRelation('roles');
+            $user->load('roles');
+
+            $roleCodes = $user->roles
+                ->pluck('code')
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        Cache::put($cacheKey, $roleCodes, self::CACHE_TTL);
+
+        return $roleCodes;
+    }
+
+    /**
+     * Refresh and update all cached RBAC permissions and roles for a user in Redis.
+     */
+    public static function refreshUserCache(User $user): array
+    {
+        $permissions = self::setUserPermissionCodes($user);
+        $roles = self::setUserRoleCodes($user);
+
+        return [
+            'permissions' => $permissions,
+            'roles' => $roles,
+        ];
+    }
+
+    /**
      * Check if user has given permission(s) using cached permission list.
      */
     public static function hasPermission(User $user, string|array $permissions): bool
@@ -126,20 +184,25 @@ class RbacCacheService
     }
 
     /**
-     * Get cached paginated roles with attached permissions, optionally filtered by business_uuid.
+     * Get cached paginated roles with attached permissions, optionally filtered by business_uuid and is_system.
      */
-    public static function getRolesWithPermissions(?string $businessUuid = null, int $perPage = 20, int $page = 1): LengthAwarePaginator
+    public static function getRolesWithPermissions(?string $businessUuid = null, int $perPage = 20, int $page = 1, ?bool $isSystem = null): LengthAwarePaginator
     {
         $version = self::getRolesListVersion($businessUuid);
         $scope = $businessUuid ? "business:{$businessUuid}" : "all";
-        $cacheKey = "roles:list:{$scope}:v{$version}:p{$page}:l{$perPage}";
+        $sysSuffix = $isSystem !== null ? ($isSystem ? ":sys1" : ":sys0") : "";
+        $cacheKey = "roles:list:{$scope}:v{$version}:p{$page}:l{$perPage}{$sysSuffix}";
 
-        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($businessUuid, $perPage, $page) {
+        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($businessUuid, $perPage, $page, $isSystem) {
             return Role::query()
                 ->with('permissions')
                 ->when(
                     $businessUuid,
                     fn ($q, $uuid) => $q->where('business_uuid', $uuid)
+                )
+                ->when(
+                    $isSystem !== null,
+                    fn ($q) => $q->where('is_system', $isSystem)
                 )
                 ->paginate(perPage: $perPage, page: $page);
         });

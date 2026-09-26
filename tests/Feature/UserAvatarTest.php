@@ -57,10 +57,12 @@ class UserAvatarTest extends TestCase
 
         Storage::disk($disk)->assertExists($user->avatar);
 
-        // Verify the stored file is actually a valid WebP image
+        // Verify the stored file is actually a valid WebP image and check pixels
         $storedContent = Storage::disk($disk)->get($user->avatar);
         $image = @imagecreatefromstring($storedContent);
         $this->assertNotFalse($image);
+        $this->assertEquals(200, imagesx($image));
+        $this->assertEquals(200, imagesy($image));
         imagedestroy($image);
     }
 
@@ -83,6 +85,14 @@ class UserAvatarTest extends TestCase
         $user->refresh();
         $this->assertStringEndsWith('.webp', $user->avatar);
         Storage::disk($disk)->assertExists($user->avatar);
+
+        // Check pixels for converted PNG
+        $storedContent = Storage::disk($disk)->get($user->avatar);
+        $image = @imagecreatefromstring($storedContent);
+        $this->assertNotFalse($image);
+        $this->assertEquals(150, imagesx($image));
+        $this->assertEquals(150, imagesy($image));
+        imagedestroy($image);
     }
 
     public function test_user_avatar_upload_fails_for_non_image_files()
@@ -153,4 +163,83 @@ class UserAvatarTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    /**
+     * Step 1 (Resize): Reduces image dimensions & verify resulting pixel dimensions.
+     */
+    public function test_user_avatar_upload_resizes_large_dimensions_and_checks_pixels()
+    {
+        $disk = config('filesystems.default', 'public');
+        Storage::fake($disk);
+
+        [$user, $token] = $this->createAuthorizedUser('users.update');
+
+        // Large image (1200x800) exceeding max dimensions (512x512)
+        $file = UploadedFile::fake()->image('large_photo.jpg', 1200, 800);
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->postJson("/api/v1/users/{$user->uuid}/avatar", [
+                'avatar' => $file,
+            ]);
+
+        $response->assertStatus(200);
+
+        $user->refresh();
+        $this->assertNotNull($user->avatar);
+        $this->assertStringEndsWith('.webp', $user->avatar);
+
+        // Check pixels: Verify image dimensions were reduced to max 512px while maintaining aspect ratio
+        $storedContent = Storage::disk($disk)->get($user->avatar);
+        $image = @imagecreatefromstring($storedContent);
+        $this->assertNotFalse($image);
+
+        $width = imagesx($image);
+        $height = imagesy($image);
+
+        // 1200x800 proportionally scaled down to max 512 width => 512x341 pixels
+        $this->assertLessThanOrEqual(512, $width);
+        $this->assertLessThanOrEqual(512, $height);
+        $this->assertEquals(512, $width);
+        $this->assertEquals(341, $height);
+
+        imagedestroy($image);
+    }
+
+    /**
+     * Step 2 (Compress / re-encode) & Step 3 (Cache): Reduces file size and sets public CDN/browser caching.
+     */
+    public function test_user_avatar_pipeline_compress_reencode_and_cache_configuration()
+    {
+        $disk = config('filesystems.default', 'public');
+        Storage::fake($disk);
+
+        [$user, $token] = $this->createAuthorizedUser('users.update');
+
+        $file = UploadedFile::fake()->image('avatar_cache.jpg', 600, 600);
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->postJson("/api/v1/users/{$user->uuid}/avatar", [
+                'avatar' => $file,
+            ]);
+
+        $response->assertStatus(200);
+
+        $user->refresh();
+        $storedContent = Storage::disk($disk)->get($user->avatar);
+
+        // Step 1 check pixels (600x600 reduced to 512x512)
+        $image = @imagecreatefromstring($storedContent);
+        $this->assertEquals(512, imagesx($image));
+        $this->assertEquals(512, imagesy($image));
+        imagedestroy($image);
+
+        // Step 2 Compress / re-encode: Verify WebP signature
+        $this->assertStringStartsWith('RIFF', substr($storedContent, 0, 4));
+        $this->assertEquals('WEBP', substr($storedContent, 8, 4));
+
+        // Step 3 Cache: Reuses downloaded image via public visibility and storage persistence
+        Storage::disk($disk)->assertExists($user->avatar);
+        $this->assertEquals('public', Storage::disk($disk)->getVisibility($user->avatar));
+    }
 }
+

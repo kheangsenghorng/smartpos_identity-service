@@ -57,6 +57,45 @@ class AuthControllerTest extends TestCase
         ]);
     }
 
+    public function test_user_can_register_without_email_successfully()
+    {
+        $payload = [
+            'name' => 'Jane Doe',
+            'username' => 'janedoe',
+            'phone' => '0987654321',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
+            'device_uuid' => 'test-device-uuid-67890',
+            'device_name' => 'Chrome Browser',
+            'device_type' => 'desktop',
+            'platform' => 'macOS',
+        ];
+
+        $response = $this->postJson('/api/v1/auth/register', $payload);
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'access_token',
+                'refresh_token',
+                'token_type',
+                'expires_in',
+                'refresh_expires_at',
+                'user' => [
+                    'uuid',
+                    'name',
+                    'username',
+                    'phone',
+                    'status',
+                ],
+            ]);
+
+        $this->assertDatabaseHas('users', [
+            'username' => 'janedoe',
+            'phone' => '0987654321',
+            'status' => 'active',
+        ]);
+    }
+
     /**
      * Test successful user login flow with valid credentials.
      */

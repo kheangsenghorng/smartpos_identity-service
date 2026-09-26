@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\ForgotPasswordController;
 use Illuminate\Support\Facades\Route;
 
@@ -75,6 +76,25 @@ Route::prefix('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+    | Email Verification (15-Minute Expiry)
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post(
+        '/email/send-verification',
+        [EmailVerificationController::class, 'sendVerificationEmail']
+    )->middleware(
+        'throttle:otp_send'
+    );
+
+    Route::get(
+        '/email/verify/{id}/{hash}',
+        [EmailVerificationController::class, 'verify']
+    )->name('verification.verify');
+
+
+    /*
+    |--------------------------------------------------------------------------
     | Protected Authentication
     |--------------------------------------------------------------------------
     */
@@ -86,10 +106,26 @@ Route::prefix('auth')->group(function () {
             [AuthController::class, 'me']
         );
 
+        Route::post(
+            '/change-password',
+            [AuthController::class, 'changePassword']
+        );
 
         Route::post(
             '/logout',
             [AuthController::class, 'logout']
+        );
+
+        Route::post(
+            '/email/verification-notification',
+            [EmailVerificationController::class, 'resendVerificationNotification']
+        )->middleware(
+            'throttle:otp_send'
+        );
+
+        Route::get(
+            '/email/verification-status',
+            [EmailVerificationController::class, 'checkStatus']
         );
 
     });

@@ -80,7 +80,12 @@
 - Hashed PIN storage, failure counter tracking, 15-minute lockout handling, and quick-verify endpoint (`/api/v1/users/{user}/pos-pin/verify`).
 
 ### ✅ 7. User Avatar & WebP Processing System (Completed)
-- WebP avatar conversion and optimization service in `AvatarService.php`.
+- 3-Step Image Processing Pipeline in `AvatarService.php`:
+  | Step | What it does | Example / Verification |
+  | :--- | :--- | :--- |
+  | **Resize** | Reduces image dimensions | Proportionally downsamples large images to max 512×512 pixels (exact pixel dimensions verified in test suite) |
+  | **Compress / re-encode** | Reduces file size | Converts incoming JPEG/PNG/GIF into optimized WebP format with quality compression (80%) |
+  | **Cache** | Reuses the downloaded image | Stored with `public` visibility and `Cache-Control: public, max-age=31536000, immutable` for browser and CDN caching |
 - `UserAvatarController.php` for profile picture upload and deletion.
 - Automated storage symlink setup and feature test suite (`UserAvatarTest.php`).
 

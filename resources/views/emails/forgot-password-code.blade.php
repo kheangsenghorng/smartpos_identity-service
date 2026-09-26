@@ -16,7 +16,7 @@
                     
                     <!-- Header Bar with Gradient Accent -->
                     <tr>
-                        <td style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%); height: 6px; font-size: 0; line-height: 0;">&nbsp;</td>
+                        <td style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%); height: 6px; font-size: 6px; line-height: 6px;">&nbsp;</td>
                     </tr>
 
                     <!-- Main Content Padding -->

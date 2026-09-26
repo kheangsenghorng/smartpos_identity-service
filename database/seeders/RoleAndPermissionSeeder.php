@@ -686,5 +686,7 @@ class RoleAndPermissionSeeder extends Seeder
 
             $grantorRole->assignableRoles()->sync($assignableRoleIds);
         }
+
+        RbacCacheService::forgetRolesListCache();
     }
 }

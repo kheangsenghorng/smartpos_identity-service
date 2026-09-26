@@ -17,11 +17,13 @@ class RoleController extends Controller
     {
         $page = (int) $request->input('page', 1);
         $perPage = (int) $request->input('per_page', 20);
+        $isSystem = $request->has('is_system') ? $request->boolean('is_system') : null;
 
         return RbacCacheService::getRolesWithPermissions(
             $request->business_uuid,
             $perPage,
-            $page
+            $page,
+            $isSystem
         );
     }
 

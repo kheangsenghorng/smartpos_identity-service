@@ -316,9 +316,13 @@ All endpoints are hosted under prefix `/api/v1`.
 
 - **Storage Path:** Uploaded avatars are processed and written to `storage/app/public/avatars/`.
 - **Public URL Resolution:** Accessible via `/storage/avatars/{filename}` when symbolic link is active (`php artisan storage:link`).
-- **Format Normalization & Optimization (`AvatarService`):**
+- **3-Step Image Processing Pipeline (`AvatarService`):**
+  | Step | What it does | Example / Verification |
+  | :--- | :--- | :--- |
+  | **Resize** | Reduces image dimensions | Proportionally downsamples large images to max 512×512 pixels (exact pixel dimensions verified in test suite) |
+  | **Compress / re-encode** | Reduces file size | Converts incoming JPEG/PNG/GIF into optimized WebP format with quality compression (80%) |
+  | **Cache** | Reuses the downloaded image | Stored with `public` visibility and `Cache-Control: public, max-age=31536000, immutable` for browser and CDN caching |
   - Accepts `jpeg`, `png`, and `webp` images up to 5MB (`max:5120`).
-  - Converts incoming images into optimized `.webp` files using GD Driver (`imagewebp`).
   - Automatically deletes old avatar files upon new file upload or explicit deletion.
 - **Controller Layer (`UserAvatarController`):**
   - `POST /api/v1/users/{uuid}/avatar` — Validates upload request and triggers conversion.

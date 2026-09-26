@@ -51,4 +51,9 @@ return [
         10800
     ),
 
+    'require_email_verification' => (bool) env(
+        'REQUIRE_EMAIL_VERIFICATION',
+        false
+    ),
+
 ];

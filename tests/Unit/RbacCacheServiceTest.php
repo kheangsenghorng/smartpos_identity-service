@@ -41,6 +41,35 @@ class RbacCacheServiceTest extends TestCase
         $this->assertFalse(Cache::has("user:{$user->uuid}:role_codes"));
     }
 
+    public function test_user_rbac_cache_can_be_directly_set_and_refreshed_in_redis()
+    {
+        $user = User::factory()->create(['status' => 'active']);
+        $role = Role::create(['name' => 'Cashier', 'code' => 'cashier']);
+        $permission = Permission::create(['name' => 'Checkout', 'code' => 'pos.checkout', 'module' => 'pos']);
+
+        $role->permissions()->attach($permission->id);
+        $user->roles()->attach($role->id);
+
+        // Explicitly set / update user cache in Redis directly
+        $result = RbacCacheService::refreshUserCache($user);
+
+        $this->assertEquals(['pos.checkout'], $result['permissions']);
+        $this->assertEquals(['cashier'], $result['roles']);
+
+        // Assert Redis keys are immediately populated
+        $this->assertTrue(Cache::has("user:{$user->uuid}:permission_codes"));
+        $this->assertTrue(Cache::has("user:{$user->uuid}:role_codes"));
+        $this->assertEquals(['pos.checkout'], Cache::get("user:{$user->uuid}:permission_codes"));
+        $this->assertEquals(['cashier'], Cache::get("user:{$user->uuid}:role_codes"));
+
+        // Test manual update with custom codes
+        RbacCacheService::setUserPermissionCodes($user, ['pos.checkout', 'pos.refund']);
+        $this->assertEquals(['pos.checkout', 'pos.refund'], Cache::get("user:{$user->uuid}:permission_codes"));
+
+        RbacCacheService::setUserRoleCodes($user, ['cashier', 'supervisor']);
+        $this->assertEquals(['cashier', 'supervisor'], Cache::get("user:{$user->uuid}:role_codes"));
+    }
+
     public function test_roles_with_attached_permissions_are_cached_and_filtered_by_business_uuid()
     {
         $businessUuidA = '11111111-1111-1111-1111-111111111111';

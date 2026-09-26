@@ -15,6 +15,12 @@ class InputValidationSecurityTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
+    }
+
     /**
      * Helper to authenticate a user with specific RBAC permissions.
      */

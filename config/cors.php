@@ -17,13 +17,14 @@ return [
         [
             env('FRONTEND_URL'),
             env('POS_CLIENT_URL'),
+            env('DOCS_URL'),
         ]
     )))),
 
     'allowed_origins_patterns' => array_values(array_unique(array_filter(array_merge(
         array_map('trim', explode(',', (string) env('CORS_ALLOWED_ORIGINS_PATTERNS', ''))),
         [
-            '#^https?://(api|admin|pos|app)\.smartpos\.test(:[0-9]+)?$#',
+            '#^https?://(api|admin|pos|app|doc)\.smartpos\.test(:[0-9]+)?$#',
             '#^https?://.*\.servicefixit\.me(:[0-9]+)?$#',
             '#^https?://.*\.ngrok(-free)?\.app$#',
             '#^https?://.*\.ngrok\.io$#',

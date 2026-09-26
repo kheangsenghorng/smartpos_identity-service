@@ -10,6 +10,7 @@ use App\Models\UserSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class ForgotPasswordController extends Controller
@@ -85,21 +86,34 @@ class ForgotPasswordController extends Controller
         |--------------------------------------------------------------------------
         */
     
-        Mail::to(
-            $user->email
-        )->send(
-            new ForgotPasswordCodeMail(
-                $code
-            )
-        );
+        try {
+            Mail::to(
+                $user->email
+            )->send(
+                new ForgotPasswordCodeMail(
+                    $code
+                )
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Forgot password email failed to send: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'email' => $user->email,
+            ]);
+        }
     
-        return response()->json([
+        $res = [
             'message' =>
                 'If the email exists, a verification code has been sent.',
 
             'expires_in' =>
                 600,
-        ]);
+        ];
+
+        if (app()->environment('local', 'testing') || config('app.debug')) {
+            $res['code'] = $code;
+        }
+
+        return response()->json($res);
     }
 
     /**

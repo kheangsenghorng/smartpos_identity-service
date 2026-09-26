@@ -129,4 +129,18 @@ class RoleControllerTest extends TestCase
         $uuids = collect($response->json('data'))->pluck('uuid')->all();
         $this->assertContains($ownerUser->uuid, $uuids);
     }
+
+    public function test_roles_index_can_filter_by_is_system(): void
+    {
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->adminToken)
+            ->getJson('/api/v1/roles?is_system=1&per_page=50');
+
+        $response->assertStatus(200);
+        $roles = $response->json('data');
+        $this->assertNotEmpty($roles);
+
+        foreach ($roles as $role) {
+            $this->assertTrue((bool) $role['is_system']);
+        }
+    }
 }

@@ -175,6 +175,42 @@ class AuthController extends Controller
 
         /*
         |--------------------------------------------------------------------------
+        | Check email verification (Security enforcement - no bypass allowed)
+        |--------------------------------------------------------------------------
+        */
+
+        if (config('auth.require_email_verification', false) && $user->email && $user->email_verified_at === null) {
+            LoginAttempt::create([
+                'user_id' => $user->id,
+
+                'identifier' =>
+                    $data['login'],
+
+                'ip_address' =>
+                    $request->ip(),
+
+                'user_agent' =>
+                    $request->userAgent(),
+
+                'status' =>
+                    'failed',
+
+                'failure_reason' =>
+                    'email_not_verified',
+
+                'attempted_at' =>
+                    now(),
+            ]);
+
+            return response()->json([
+                'message' => 'Your email address is not verified. Please verify your email before logging in.',
+                'error' => 'email_not_verified',
+                'email' => $user->email,
+            ], 403);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
         | Find or create device
         |--------------------------------------------------------------------------
         */
@@ -639,6 +675,9 @@ class AuthController extends Controller
 
             'status' =>
                 'active',
+
+            'email_verified_at' =>
+                null,
         ]);
 
         /*
@@ -835,6 +874,30 @@ class AuthController extends Controller
             return response()->json([
                 'message' =>
                     'Account is not active.',
+            ], 403);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Check email verification on refresh (Prevent token renewal bypass)
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            config('auth.require_email_verification', false) &&
+            $session->user->email &&
+            $session->user->email_verified_at === null
+        ) {
+            $session->update([
+                'revoked_at' =>
+                    now(),
+            ]);
+
+            return response()->json([
+                'message' =>
+                    'Your email address is not verified. Session revoked.',
+                'error' =>
+                    'email_not_verified',
             ], 403);
         }
 
@@ -1254,6 +1317,86 @@ class AuthController extends Controller
                         $session->device->is_blocked,
                 ]
                 : null,
+        ]);
+    }
+
+    /**
+     * Change password for authenticated user.
+     */
+    public function changePassword(Request $request)
+    {
+        $data = $request->validate([
+            'current_password' => [
+                'required',
+                'string',
+            ],
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+                'confirmed',
+            ],
+            'logout_other_devices' => [
+                'sometimes',
+                'boolean',
+            ],
+        ]);
+
+        $user = auth('api')->user();
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        // Verify current password matches
+        if (! Hash::check($data['current_password'], $user->password)) {
+            return response()->json([
+                'message' => 'The provided current password does not match our records.',
+                'errors' => [
+                    'current_password' => ['The provided current password does not match our records.'],
+                ],
+            ], 422);
+        }
+
+        // Prevent reusing same password
+        if (Hash::check($data['password'], $user->password)) {
+            return response()->json([
+                'message' => 'New password cannot be the same as your current password.',
+                'errors' => [
+                    'password' => ['New password cannot be the same as your current password.'],
+                ],
+            ], 422);
+        }
+
+        $now = now();
+
+        $user->update([
+            'password' => Hash::make($data['password']),
+            'password_changed_at' => $now,
+        ]);
+
+        // Optional: Logout other active sessions
+        if ($request->boolean('logout_other_devices')) {
+            /** @var JWTGuard $guard */
+            $guard = auth('api');
+            $currentSessionUuid = $guard->payload()->get('sid');
+
+            UserSession::where('user_id', $user->id)
+                ->when($currentSessionUuid, function ($query, $uuid) {
+                    $query->where('uuid', '!=', $uuid);
+                })
+                ->whereNull('revoked_at')
+                ->update([
+                    'revoked_at' => $now,
+                ]);
+        }
+
+        return response()->json([
+            'message' => 'Password changed successfully.',
+            'password_changed_at' => $now->toIso8601String(),
+            'password_changed_at_formatted' => $now->format('d M Y, h:i A'),
         ]);
     }
 

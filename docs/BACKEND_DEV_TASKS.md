@@ -3,6 +3,7 @@
 This backlog provides comprehensive, actionable task tickets for the **Backend Developer** to implement:
 1. **Module A: Account Role & Multi-Business Context Switching** (`BE-01` to `BE-08`)
 2. **Module B: Email & Phone Number SMS Verification System** (`BE-09` to `BE-14`)
+3. **Module C: Account Security Suite & Security Controls** (`BE-15` to `BE-22`)
 
 ---
 
@@ -24,6 +25,14 @@ This backlog provides comprehensive, actionable task tickets for the **Backend D
 | **`BE-12`** | **P1** | Verification | Phone Number Normalization & E.164 Helper | `app/Helpers/PhoneNumberHelper.php` | `Ready` |
 | **`BE-13`** | **P1** | Verification | Environment Configuration for SMS Driver | `config/services.php`, `.env.example` | `Ready` |
 | **`BE-14`** | **P1** | Verification | Automated Tests for Email & Phone SMS OTP | `tests/Feature/Auth/OtpVerificationTest.php` | `Ready` |
+| **`BE-15`** | **P0** | Security | Password Management & Timestamp Tracking (`password_changed_at`) | `database/migrations/*`, `app/Http/Controllers/Api/AuthController.php`, `routes/api/auth.php` | `Completed` |
+| **`BE-16`** | **P0** | Security | Two-Factor Authentication Engine (SMS / Email / Authenticator) | `database/migrations/*`, `app/Services/Auth/TwoFactorService.php`, `routes/api/auth.php` | `Ready` |
+| **`BE-17`** | **P1** | Security | Google OAuth Account Connection & Disconnection | `database/migrations/*`, `app/Http/Controllers/Api/AuthController.php`, `routes/api/auth.php` | `Ready` |
+| **`BE-18`** | **P0** | Security | Phone Number Verification, Update & Removal Challenge | `app/Http/Controllers/Api/UserController.php`, `routes/api/users.php` | `Ready` |
+| **`BE-19`** | **P0** | Security | Primary & Secondary Email Verification & Removal | `app/Http/Controllers/Api/UserController.php`, `routes/api/users.php` | `Ready` |
+| **`BE-20`** | **P0** | Security | Device Management Policy & Scoping (Trust, Block, Untrust, Unblock) | `app/Http/Controllers/Api/UserDeviceController.php`, `routes/api/devices.php` | `Ready` |
+| **`BE-21`** | **P0** | Security | Account Activity, Active Sessions & Login Attempts Audit Trail | `app/Http/Controllers/Api/UserSessionController.php`, `routes/api/sessions.php` | `Ready` |
+| **`BE-22`** | **P0** | Security | Account Deactivation & Automatic Sign-in Reactivation Flow | `database/migrations/*`, `app/Http/Controllers/Api/AuthController.php`, `routes/api/auth.php` | `Ready` |
 
 ---
 
@@ -294,6 +303,124 @@ This backlog provides comprehensive, actionable task tickets for the **Backend D
 
 ---
 
+### 🏷️ TASK `BE-15`: Password Management & Timestamp Tracking
+- **Target Files**:
+  - `database/migrations/xxxx_xx_xx_add_password_changed_at_to_users_table.php`
+  - `app/Http/Requests/Auth/ChangePasswordRequest.php`
+  - `app/Http/Controllers/Api/AuthController.php`
+  - `routes/api/auth.php`
+- **Objective**: Provide secure password updates with last-changed tracking and optional session revocation.
+- **Requirements & Business Rules**:
+  1. Add nullable timestamp `password_changed_at` to `users` table and `$fillable` on `User.php`.
+  2. Register endpoint `POST /api/v1/auth/change-password` guarded by `auth:api` and `session.active`.
+  3. Validate `current_password` (verifies `Hash::check()`), `password` (min 8 chars, mixed case, numbers, symbols), `password_confirmation`.
+  4. Update password hash and set `password_changed_at = now()`.
+  5. Return formatted response with updated `password_changed_at` (e.g. `22 Dec 2024, 10:30 AM`).
+  6. If `logout_other_devices` flag is provided, revoke all active sessions except the current caller session.
+
+---
+
+### 🏷️ TASK `BE-16`: Two-Factor Authentication (2FA) Engine
+- **Target Files**:
+  - `database/migrations/xxxx_xx_xx_add_two_factor_columns_to_users_table.php`
+  - `app/Services/Auth/TwoFactorService.php`
+  - `app/Http/Controllers/Api/AuthController.php`
+  - `routes/api/auth.php`
+- **Objective**: Multi-channel 2FA support (SMS, Email OTP, or Authenticator App).
+- **Requirements & Business Rules**:
+  1. Add `two_factor_enabled` (boolean default false), `two_factor_type` (`sms`, `email`, `totp`), `two_factor_secret` (nullable string encrypted) to `users` table.
+  2. Endpoint `POST /api/v1/auth/2fa/toggle`: immediate enable/disable toggle for authenticated users (requires password confirmation to disable).
+  3. Endpoint `POST /api/v1/auth/2fa/send-challenge`: dispatch 6-digit OTP code to verified SMS or Email.
+  4. Endpoint `POST /api/v1/auth/2fa/verify`: verify OTP code during login step before issuing full JWT access tokens.
+
+---
+
+### 🏷️ TASK `BE-17`: Google OAuth Social Account Linking
+- **Target Files**:
+  - `database/migrations/xxxx_xx_xx_add_google_oauth_to_users_table.php`
+  - `app/Http/Controllers/Api/AuthController.php`
+  - `routes/api/auth.php`
+- **Objective**: Allow users to link/unlink their Google accounts for fast sign-in.
+- **Requirements & Business Rules**:
+  1. Add `google_id` (string, nullable, unique) and `google_connected_at` (nullable timestamp) to `users` table.
+  2. Endpoint `POST /api/v1/auth/oauth/google/connect`: accepts Google ID token or authorized OAuth payload and links to user account.
+  3. Endpoint `DELETE /api/v1/auth/oauth/google/disconnect`: removes `google_id` and unlinks account (ensures user has a valid password or alternative login method before unlinking).
+  4. Include `is_google_connected` and `google_connected_at` in `/auth/me` profile response.
+
+---
+
+### 🏷️ TASK `BE-18`: Phone Number Verification & Management
+- **Target Files**:
+  - `app/Http/Controllers/Api/UserController.php`
+  - `routes/api/users.php`
+- **Objective**: Manage verified phone numbers with SMS OTP verification challenges.
+- **Requirements & Business Rules**:
+  1. Ensure `phone_verified_at` timestamp is populated and formatted in user responses.
+  2. Endpoint `POST /api/v1/users/phone/verify-request`: sends 6-digit OTP to provided mobile number using `SmsService`.
+  3. Endpoint `POST /api/v1/users/phone/verify`: verifies OTP code, updates user `phone`, and sets `phone_verified_at = now()`.
+  4. Endpoint `DELETE /api/v1/users/phone`: unlinks/removes phone number (requires user password confirmation).
+
+---
+
+### 🏷️ TASK `BE-19`: Primary & Secondary Email Verification & Management
+- **Target Files**:
+  - `app/Http/Controllers/Api/UserController.php`
+  - `routes/api/users.php`
+- **Objective**: Support email change verification and secondary email removal.
+- **Requirements & Business Rules**:
+  1. Endpoint `POST /api/v1/users/email/verify-request`: generates email verification OTP or signed verification link.
+  2. Endpoint `POST /api/v1/users/email/verify`: validates token/OTP, updates email, and stamps `email_verified_at = now()`.
+  3. Endpoint `DELETE /api/v1/users/email/secondary`: removes secondary email linkage from user account.
+
+---
+
+### 🏷️ TASK `BE-20`: Device Management Policy & Scoping
+- **Target Files**:
+  - `app/Http/Controllers/Api/UserDeviceController.php`
+  - `routes/api/devices.php`
+- **Objective**: Ensure device management endpoints are scoped to authenticated users for self-service security.
+- **Requirements & Business Rules**:
+  1. `GET /api/v1/devices`: return all devices registered to the authenticated user with device type (`desktop`, `tablet`, `mobile`, `pos`), platform, IP, trust status, block status, and `last_seen_at`.
+  2. `PATCH /api/v1/devices/{userDevice}/trust`: mark device as trusted (`is_trusted = true`).
+  3. `PATCH /api/v1/devices/{userDevice}/untrust`: remove trust status.
+  4. `PATCH /api/v1/devices/{userDevice}/block`: mark device as blocked (`is_blocked = true`) and immediately revoke all active sessions associated with this device.
+  5. `PATCH /api/v1/devices/{userDevice}/unblock`: unblock device.
+
+---
+
+### 🏷️ TASK `BE-21`: Account Activity & Session Audit Trail
+- **Target Files**:
+  - `app/Http/Controllers/Api/UserSessionController.php`
+  - `app/Http/Controllers/Api/LoginAttemptController.php`
+  - `routes/api/sessions.php`, `routes/api/login_attempts.php`
+- **Objective**: Provide comprehensive visibility and control over user sessions and login attempts.
+- **Requirements & Business Rules**:
+  1. `GET /api/v1/sessions`: list active sessions for current user including IP address, user agent, expiration, and current session flag.
+  2. `DELETE /api/v1/sessions/{userSession}`: revoke individual session.
+  3. `DELETE /api/v1/sessions?except_current=true`: revoke all active sessions except the caller session.
+  4. `DELETE /api/v1/sessions/revoked`: purge historical revoked sessions for the user.
+  5. `GET /api/v1/login-attempts`: paginated audit history of login attempts (timestamp, IP address, user agent, success/failure status, failure reason).
+
+---
+
+### 🏷️ TASK `BE-22`: Account Deactivation & Automatic Re-activation Flow
+- **Target Files**:
+  - `database/migrations/xxxx_xx_xx_add_deactivation_columns_to_users_table.php`
+  - `app/Http/Controllers/Api/AuthController.php`
+  - `routes/api/auth.php`
+- **Objective**: Safe account shutdown with automatic recovery upon subsequent sign-in.
+- **Requirements & Business Rules**:
+  1. Add `deactivated_at` (nullable timestamp) and `deactivation_reason` (nullable string) to `users` table; support `status = 'deactivated'`.
+  2. Endpoint `POST /api/v1/auth/deactivate`:
+     - Requires password verification and optional deactivation reason.
+     - Sets `$user->status = 'deactivated'`, `$user->deactivated_at = now()`.
+     - Terminates all active user sessions and revokes tokens.
+     - Emits `[ACCOUNT_DEACTIVATED]` security audit event.
+  3. Automatic Sign-in Re-activation:
+     - In `AuthController@login`: if valid credentials match a `deactivated` account, restore `$user->status = 'active'`, clear `deactivated_at`, log `[ACCOUNT_REACTIVATED]`, and proceed with login normally.
+
+---
+
 ## 🧪 Quick Curl Verification Commands
 
 ### Test 1: Context Switch API
@@ -317,13 +444,26 @@ curl -X POST "http://localhost:8000/api/v1/auth/forgot-password/send-code" \
   }'
 ```
 
-### Test 3: Verify SMS OTP
+### Test 3: Change Password with Last-Changed Timestamp
 ```bash
-curl -X POST "http://localhost:8000/api/v1/auth/verify-reset-code" \
+curl -X POST "http://localhost:8000/api/v1/auth/change-password" \
+  -H "Authorization: Bearer <JWT_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{
-    "channel": "sms",
-    "identifier": "+85512345678",
-    "code": "123456"
+    "current_password": "OldPassword123!",
+    "password": "NewSecretPassword456!",
+    "password_confirmation": "NewSecretPassword456!"
   }'
 ```
+
+### Test 4: Deactivate Account
+```bash
+curl -X POST "http://localhost:8000/api/v1/auth/deactivate" \
+  -H "Authorization: Bearer <JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "password": "CurrentPassword123!",
+    "reason": "Temporary hiatus"
+  }'
+```
+

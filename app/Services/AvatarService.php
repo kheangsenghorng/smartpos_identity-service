@@ -21,12 +21,19 @@ class AvatarService
     /**
      * Process and store avatar image file as WebP format.
      * Accepts JPEG, PNG, GIF, or WebP uploaded files.
+     *
+     * Pipeline Steps:
+     * 1. Resize: Proportional scaling if dimensions exceed maxWidth/maxHeight.
+     * 2. Compress / Re-encode: Converts to optimized WebP format with quality control.
+     * 3. Cache: Applies long-term public Cache-Control headers for CDN and browser caching.
      */
     public function uploadAvatar(
         User $user,
         UploadedFile $file,
         ?string $disk = null,
-        int $quality = 80
+        int $quality = 80,
+        int $maxWidth = 512,
+        int $maxHeight = 512
     ): string {
         $activeDisk = $this->disk($disk);
         $this->deleteAvatarFile($user, $activeDisk);
@@ -41,9 +48,26 @@ class AvatarService
             throw new RuntimeException('Invalid image payload or unsupported format.');
         }
 
+        // Step 1: Resize — Reduce image dimensions if exceeding maximum limits
+        $origWidth = imagesx($image);
+        $origHeight = imagesy($image);
+
+        if ($origWidth > $maxWidth || $origHeight > $maxHeight) {
+            $ratio = min($maxWidth / $origWidth, $maxHeight / $origHeight);
+            $targetWidth = max(1, (int) round($origWidth * $ratio));
+            $targetHeight = max(1, (int) round($origHeight * $ratio));
+
+            $resizedImage = imagescale($image, $targetWidth, $targetHeight);
+            if ($resizedImage !== false) {
+                imagedestroy($image);
+                $image = $resizedImage;
+            }
+        }
+
         imagealphablending($image, true);
         imagesavealpha($image, true);
 
+        // Step 2: Compress / re-encode — Reduce file size to optimized WebP format
         ob_start();
         $success = imagewebp($image, null, $quality);
         $webpContent = ob_get_clean();
@@ -54,8 +78,12 @@ class AvatarService
             throw new RuntimeException('Failed to process image into WebP format.');
         }
 
+        // Step 3: Cache — Store with public CDN / browser Cache-Control directives
         $path = 'avatars/' . Str::uuid() . '.webp';
-        Storage::disk($activeDisk)->put($path, $webpContent);
+        Storage::disk($activeDisk)->put($path, $webpContent, [
+            'visibility' => 'public',
+            'CacheControl' => 'public, max-age=31536000, immutable',
+        ]);
 
         $user->update([
             'avatar' => $path,
