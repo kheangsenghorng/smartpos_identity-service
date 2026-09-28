@@ -16,6 +16,7 @@ services:
       - "9000"
 
     volumes:
+      - ./.env:/var/www/html/.env:ro
       - ${JWT_SECRETS_DIR:-./storage/certs}:/run/secrets/identity-jwt:ro
       - ${JWT_SECRETS_DIR:-./storage/certs}:/var/www/html/storage/certs:ro
 
@@ -48,6 +49,7 @@ services:
       - .env
 
     volumes:
+      - ./.env:/var/www/html/.env:ro
       - ${JWT_SECRETS_DIR:-./storage/certs}:/run/secrets/identity-jwt:ro
       - ${JWT_SECRETS_DIR:-./storage/certs}:/var/www/html/storage/certs:ro
 
