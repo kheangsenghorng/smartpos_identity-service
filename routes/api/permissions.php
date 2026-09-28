@@ -19,6 +19,14 @@ Route::get(
 
 
 Route::get(
+    '/permissions/groups',
+    [PermissionController::class, 'groups']
+)->middleware(
+    'permission:permissions.view'
+);
+
+
+Route::get(
     '/permissions/{permission}',
     [PermissionController::class, 'show']
 )->middleware(

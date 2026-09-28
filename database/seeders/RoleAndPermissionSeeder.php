@@ -52,6 +52,8 @@ class RoleAndPermissionSeeder extends Seeder
             ['code' => 'sessions.revoke', 'name' => 'Revoke Sessions', 'module' => 'sessions', 'resource' => 'sessions', 'action' => 'revoke', 'description' => 'Can terminate user sessions'],
             ['code' => 'login_attempts.view', 'name' => 'View Login Attempts', 'module' => 'security', 'resource' => 'login_attempts', 'action' => 'view', 'description' => 'Can view login security logs'],
             ['code' => 'security_events.view', 'name' => 'View Security Audit Events', 'module' => 'security', 'resource' => 'security_events', 'action' => 'view', 'description' => 'Can view forensic security audit trail logs'],
+            ['code' => 'security_events.export', 'name' => 'Export Security Audit Events', 'module' => 'security', 'resource' => 'security_events', 'action' => 'export', 'description' => 'Can export forensic security audit events for external analysis'],
+            ['code' => 'security_events.manage', 'name' => 'Manage Security Events & Alerts', 'module' => 'security', 'resource' => 'security_events', 'action' => 'manage', 'description' => 'Can configure security alerts and manage audit policies'],
 
             // Business & Outlets
             ['code' => 'businesses.view', 'name' => 'View Businesses', 'module' => 'businesses', 'resource' => 'businesses', 'action' => 'view', 'description' => 'Can view business profiles and details'],
@@ -60,6 +62,8 @@ class RoleAndPermissionSeeder extends Seeder
             ['code' => 'businesses.delete', 'name' => 'Delete Businesses', 'module' => 'businesses', 'resource' => 'businesses', 'action' => 'delete', 'description' => 'Can delete businesses'],
             ['code' => 'business_users.view', 'name' => 'View Business Users', 'module' => 'business_users', 'resource' => 'business_users', 'action' => 'view', 'description' => 'Can view users assigned to a business'],
             ['code' => 'business_users.manage', 'name' => 'Manage Business Users', 'module' => 'business_users', 'resource' => 'business_users', 'action' => 'manage', 'description' => 'Can add, update, suspend, or remove users in a business'],
+            ['code' => 'business_settings.view', 'name' => 'View Business Settings', 'module' => 'business_settings', 'resource' => 'business_settings', 'action' => 'view', 'description' => 'Can view business configuration and settings'],
+            ['code' => 'business_settings.update', 'name' => 'Update Business Settings', 'module' => 'business_settings', 'resource' => 'business_settings', 'action' => 'update', 'description' => 'Can update business configuration and preferences'],
 
             ['code' => 'outlets.view', 'name' => 'View Outlets', 'module' => 'outlets', 'resource' => 'outlets', 'action' => 'view', 'description' => 'Can view outlet locations'],
             ['code' => 'outlets.create', 'name' => 'Create Outlets', 'module' => 'outlets', 'resource' => 'outlets', 'action' => 'create', 'description' => 'Can create new outlets for a business'],
@@ -81,6 +85,7 @@ class RoleAndPermissionSeeder extends Seeder
             ['code' => 'products.create', 'name' => 'Create Products', 'module' => 'products', 'resource' => 'products', 'action' => 'create', 'description' => 'Can create new products and variants'],
             ['code' => 'products.update', 'name' => 'Update Products', 'module' => 'products', 'resource' => 'products', 'action' => 'update', 'description' => 'Can update products and variants'],
             ['code' => 'products.delete', 'name' => 'Delete Products', 'module' => 'products', 'resource' => 'products', 'action' => 'delete', 'description' => 'Can delete products and variants'],
+            ['code' => 'products.manage', 'name' => 'Full Product Catalog Management', 'module' => 'products', 'resource' => 'products', 'action' => 'manage', 'description' => 'Can perform all product catalog management tasks'],
             ['code' => 'categories.view', 'name' => 'View Categories', 'module' => 'categories', 'resource' => 'categories', 'action' => 'view', 'description' => 'Can view product categories'],
             ['code' => 'categories.create', 'name' => 'Create Categories', 'module' => 'categories', 'resource' => 'categories', 'action' => 'create', 'description' => 'Can create product categories'],
             ['code' => 'categories.update', 'name' => 'Update Categories', 'module' => 'categories', 'resource' => 'categories', 'action' => 'update', 'description' => 'Can update product categories'],
@@ -190,6 +195,10 @@ class RoleAndPermissionSeeder extends Seeder
             ['code' => 'hr.self_service.clock_in', 'name' => 'Staff Attendance Clock In/Out', 'module' => 'hr', 'resource' => 'self_service', 'action' => 'clock_in', 'description' => 'Can clock in and out for work shifts'],
             ['code' => 'hr.teams.view', 'name' => 'View Team Reports', 'module' => 'hr', 'resource' => 'teams', 'action' => 'view', 'description' => 'Can view direct reports attendance and leave'],
             ['code' => 'hr.teams.manage', 'name' => 'Manage Team Schedules', 'module' => 'hr', 'resource' => 'teams', 'action' => 'manage', 'description' => 'Can approve team leave and manage work shifts'],
+
+            // System Audit Logs
+            ['code' => 'audit_logs.view', 'name' => 'View System Audit Logs', 'module' => 'audit_logs', 'resource' => 'audit_logs', 'action' => 'view', 'description' => 'Can view general system audit trail logs'],
+            ['code' => 'audit_logs.export', 'name' => 'Export System Audit Logs', 'module' => 'audit_logs', 'resource' => 'audit_logs', 'action' => 'export', 'description' => 'Can export system audit trail logs'],
         ];
 
         foreach ($permissions as $permissionData) {
@@ -203,6 +212,8 @@ class RoleAndPermissionSeeder extends Seeder
                 ]
             );
         }
+
+        $this->call(PermissionGroupSeeder::class);
 
         // 2. Define System & Standard Role Hierarchy Matrix with module and level
         $rolesMatrix = [

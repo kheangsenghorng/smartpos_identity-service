@@ -7,7 +7,7 @@ use Illuminate\Support\Str;
 
 class SecurityEvent extends Model
 {
-    public $timestamps = false;
+    public $timestamps = true;
 
     protected $table = 'security_events';
 
@@ -15,24 +15,33 @@ class SecurityEvent extends Model
         'uuid',
         'user_uuid',
         'business_uuid',
+        'session_uuid',
+        'device_uuid',
         'event_type',
         'severity',
         'ip_address',
         'user_agent',
+        'route',
+        'http_method',
+        'description',
         'metadata',
+        'occurred_at',
         'created_at',
+        'updated_at',
     ];
 
     protected $casts = [
         'metadata' => 'array',
+        'occurred_at' => 'datetime',
         'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     protected static function booted(): void
     {
         static::creating(function (SecurityEvent $event) {
             $event->uuid ??= (string) Str::uuid();
-            $event->created_at ??= now();
+            $event->occurred_at ??= now();
         });
     }
 
@@ -42,7 +51,7 @@ class SecurityEvent extends Model
     }
 
     /**
-     * Helper to log security audit event.
+     * Backward-compatible helper that delegates to SecurityEventService.
      */
     public static function log(
         string $eventType,
@@ -51,18 +60,18 @@ class SecurityEvent extends Model
         array $metadata = [],
         string $severity = 'info',
         ?string $ipAddress = null,
-        ?string $userAgent = null
+        ?string $userAgent = null,
+        ?string $description = null
     ): self {
-        return self::create([
-            'uuid' => (string) Str::uuid(),
-            'user_uuid' => $userUuid,
-            'business_uuid' => $businessUuid,
-            'event_type' => $eventType,
-            'severity' => $severity,
-            'ip_address' => $ipAddress ?? request()?->ip(),
-            'user_agent' => $userAgent ?? request()?->userAgent(),
-            'metadata' => $metadata,
-            'created_at' => now(),
-        ]);
+        return \App\Services\SecurityEventService::record(
+            eventType: $eventType,
+            severity: $severity,
+            userUuid: $userUuid,
+            businessUuid: $businessUuid,
+            description: $description,
+            metadata: $metadata,
+            ipAddress: $ipAddress,
+            userAgent: $userAgent
+        );
     }
 }

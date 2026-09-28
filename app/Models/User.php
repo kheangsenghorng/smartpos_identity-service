@@ -25,6 +25,9 @@ class User extends Authenticatable implements JWTSubject
         'name',
         'username',
         'email',
+        'pending_email',
+        'pending_email_expires_at',
+        'pending_email_token',
         'phone',
         'password',
         'avatar',
@@ -37,6 +40,7 @@ class User extends Authenticatable implements JWTSubject
 
     protected $hidden = [
         'password',
+        'pending_email_token',
     ];
 
     /**
@@ -71,6 +75,7 @@ class User extends Authenticatable implements JWTSubject
         return [
             'password' => 'hashed',
             'email_verified_at' => 'datetime',
+            'pending_email_expires_at' => 'datetime',
             'last_login_at' => 'datetime',
             'password_changed_at' => 'datetime',
         ];

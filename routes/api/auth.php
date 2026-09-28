@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\EmailChangeController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\ForgotPasswordController;
 use Illuminate\Support\Facades\Route;
@@ -92,6 +93,17 @@ Route::prefix('auth')->group(function () {
         [EmailVerificationController::class, 'verify']
     )->name('verification.verify');
 
+    /*
+    |--------------------------------------------------------------------------
+    | Email Change Verification (15-Minute Expiry with Secure Token)
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/email/change/verify/{token}',
+        [EmailChangeController::class, 'verify']
+    )->name('email.change.verify');
+
 
     /*
     |--------------------------------------------------------------------------
@@ -126,6 +138,31 @@ Route::prefix('auth')->group(function () {
         Route::get(
             '/email/verification-status',
             [EmailVerificationController::class, 'checkStatus']
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Email Change Operations
+        |--------------------------------------------------------------------------
+        */
+
+        Route::post(
+            '/email/change-request',
+            [EmailChangeController::class, 'requestChange']
+        )->middleware(
+            'throttle:otp_send'
+        );
+
+        Route::post(
+            '/email/change/resend',
+            [EmailChangeController::class, 'resend']
+        )->middleware(
+            'throttle:otp_send'
+        );
+
+        Route::post(
+            '/email/change/cancel',
+            [EmailChangeController::class, 'cancel']
         );
 
     });

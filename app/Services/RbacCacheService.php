@@ -227,5 +227,61 @@ class RbacCacheService
         }
         Cache::increment($globalVersionKey);
     }
+
+    /**
+     * Get the cache version for the permission groups tree.
+     */
+    public static function getPermissionGroupsTreeVersion(): int
+    {
+        return (int) Cache::get('permissions:groups:tree:version', 1);
+    }
+
+    /**
+     * Get cached hierarchical permission groups tree with active permissions in Redis.
+     */
+    public static function getPermissionGroupsTree(): array
+    {
+        $version = self::getPermissionGroupsTreeVersion();
+        $cacheKey = "permissions:groups:tree:v{$version}";
+
+        return Cache::remember($cacheKey, self::CACHE_TTL * 24, function () {
+            return \App\Models\PermissionGroup::query()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->with([
+                    'resources' => function ($query) {
+                        $query->where('is_active', true)
+                            ->orderBy('sort_order')
+                            ->orderBy('name')
+                            ->with(['permissions' => function ($q) {
+                                $q->where('is_active', true)
+                                    ->orderBy('sort_order')
+                                    ->orderBy('code');
+                            }]);
+                    },
+                    'permissions' => function ($query) {
+                        $query->where('is_active', true)
+                            ->orderBy('sort_order')
+                            ->orderBy('code');
+                    },
+                ])
+                ->get()
+                ->toArray();
+        });
+    }
+
+    /**
+     * Invalidate cached permission groups tree.
+     */
+    public static function forgetPermissionGroupsTreeCache(): void
+    {
+        $versionKey = 'permissions:groups:tree:version';
+        if (! Cache::has($versionKey)) {
+            Cache::put($versionKey, 1, self::CACHE_TTL * 24);
+        }
+        Cache::increment($versionKey);
+    }
 }
+
 

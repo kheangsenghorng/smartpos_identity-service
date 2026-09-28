@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Permission;
+use App\Services\RbacCacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -18,6 +19,16 @@ class PermissionController extends Controller
             ->orderBy('module')
             ->orderBy('code')
             ->paginate(50);
+    }
+
+    /**
+     * Get hierarchical permission groups tree with active permissions (cached in Redis).
+     */
+    public function groups()
+    {
+        return response()->json([
+            'data' => RbacCacheService::getPermissionGroupsTree(),
+        ]);
     }
     
     /**
@@ -70,6 +81,16 @@ class PermissionController extends Controller
                 'string',
                 'max:255',
             ],
+            '*.permission_group_id' => [
+                'nullable',
+                'integer',
+                'exists:permission_groups,id',
+            ],
+            '*.sort_order' => [
+                'nullable',
+                'integer',
+                'min:0',
+            ],
         ]);
 
         $data = $validator->validate();
@@ -83,10 +104,14 @@ class PermissionController extends Controller
                     'resource' => $permission['resource'] ?? null,
                     'action' => $permission['action'] ?? null,
                     'description' => $permission['description'] ?? null,
+                    'permission_group_id' => $permission['permission_group_id'] ?? null,
+                    'sort_order' => $permission['sort_order'] ?? 0,
                     'is_active' => true,
                 ]);
             });
         });
+
+        RbacCacheService::forgetPermissionGroupsTreeCache();
 
         return response()->json([
             'message' => 'Permissions created successfully.',
@@ -100,7 +125,7 @@ class PermissionController extends Controller
      */
     public function show(Permission $permission)
     {
-        return $permission;
+        return $permission->load('permissionGroup');
     }
 
     /**
@@ -129,10 +154,23 @@ class PermissionController extends Controller
                     'string',
                     'max:255'
                 ],
+                'permission_group_id' => [
+                    'sometimes',
+                    'nullable',
+                    'integer',
+                    'exists:permission_groups,id',
+                ],
+                'sort_order' => [
+                    'sometimes',
+                    'integer',
+                    'min:0',
+                ],
             ])
         );
 
-        return $permission;
+        RbacCacheService::forgetPermissionGroupsTreeCache();
+
+        return $permission->load('permissionGroup');
     }
 
     /**
@@ -141,6 +179,8 @@ class PermissionController extends Controller
     public function destroy(Permission $permission)
     {
         $permission->delete();
+
+        RbacCacheService::forgetPermissionGroupsTreeCache();
 
         return response()->json([
             'message' => 'Permission deleted.'

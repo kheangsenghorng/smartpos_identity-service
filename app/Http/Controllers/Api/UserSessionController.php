@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserSession;
+use App\Services\SecurityEventService;
 use Illuminate\Http\Request;
 use PHPOpenSourceSaver\JWTAuth\JWTGuard;
 
@@ -251,6 +252,14 @@ class UserSessionController extends Controller
                 now(),
         ]);
 
+        SecurityEventService::record(
+            eventType: SecurityEventService::SESSION_REVOKED,
+            severity: SecurityEventService::SEVERITY_LOW,
+            sessionUuid: $userSession->uuid,
+            description: 'User session revoked successfully.',
+            metadata: ['was_current_session' => $isCurrentSession]
+        );
+
         /*
         |--------------------------------------------------------------------------
         | If Current Session
@@ -382,6 +391,13 @@ class UserSessionController extends Controller
                 'revoked_at' =>
                     now(),
             ]);
+
+        SecurityEventService::record(
+            eventType: SecurityEventService::ALL_SESSIONS_REVOKED,
+            severity: SecurityEventService::SEVERITY_MEDIUM,
+            description: "User revoked {$revokedCount} session(s).",
+            metadata: ['revoked_count' => $revokedCount, 'except_current' => $exceptCurrent]
+        );
 
         /*
         |--------------------------------------------------------------------------

@@ -10,6 +10,12 @@ use Illuminate\Support\Str;
 
 abstract class TestCase extends BaseTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        \Illuminate\Support\Facades\Cache::flush();
+    }
+
     /**
      * Create a UserDevice + UserSession for the given user,
      * then return a JWT that includes the required `sid` claim.

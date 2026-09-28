@@ -7,6 +7,7 @@ use App\Models\LoginAttempt;
 use App\Models\User;
 use App\Models\UserDevice;
 use App\Models\UserSession;
+use App\Services\SecurityEventService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -133,6 +134,15 @@ class AuthController extends Controller
                 'attempted_at' =>
                     now(),
             ]);
+
+            SecurityEventService::record(
+                eventType: SecurityEventService::LOGIN_FAILED,
+                severity: SecurityEventService::SEVERITY_MEDIUM,
+                userUuid: $user?->uuid,
+                deviceUuid: $data['device_uuid'] ?? null,
+                description: 'Invalid login credentials.',
+                metadata: ['identifier' => $data['login']]
+            );
 
             return response()->json([
                 'message' => 'Invalid login credentials.',
@@ -507,6 +517,15 @@ class AuthController extends Controller
             'attempted_at' =>
                 now(),
         ]);
+
+        SecurityEventService::record(
+            eventType: SecurityEventService::LOGIN_SUCCESS,
+            severity: SecurityEventService::SEVERITY_LOW,
+            userUuid: $user->uuid,
+            sessionUuid: $session->uuid,
+            deviceUuid: $device->uuid,
+            description: 'User logged in successfully.'
+        );
 
         /*
         |--------------------------------------------------------------------------
@@ -1393,6 +1412,14 @@ class AuthController extends Controller
                 ]);
         }
 
+        SecurityEventService::record(
+            eventType: SecurityEventService::PASSWORD_CHANGED,
+            severity: SecurityEventService::SEVERITY_LOW,
+            userUuid: $user->uuid,
+            description: 'User password changed successfully.',
+            metadata: ['logout_other_devices' => $request->boolean('logout_other_devices')]
+        );
+
         return response()->json([
             'message' => 'Password changed successfully.',
             'password_changed_at' => $now->toIso8601String(),
@@ -1502,6 +1529,14 @@ class AuthController extends Controller
         | Invalidate access token
         |--------------------------------------------------------------------------
         */
+
+        SecurityEventService::record(
+            eventType: SecurityEventService::LOGOUT,
+            severity: SecurityEventService::SEVERITY_LOW,
+            userUuid: $guard->user()?->uuid,
+            sessionUuid: $sessionUuid,
+            description: 'User logged out successfully.'
+        );
 
         $guard->logout();
 

@@ -16,7 +16,9 @@ class SecurityEventController extends Controller
         $perPage = (int) $request->input('per_page', 25);
         $perPage = max(1, min($perPage, 100));
 
-        $query = SecurityEvent::query()->latest('created_at');
+        $query = SecurityEvent::query()
+            ->orderByDesc('occurred_at')
+            ->orderByDesc('id');
 
         if ($request->filled('user_uuid')) {
             $query->where('user_uuid', $request->input('user_uuid'));
@@ -35,19 +37,39 @@ class SecurityEventController extends Controller
         }
 
         if ($request->filled('from')) {
-            $query->where('created_at', '>=', $request->input('from'));
+            $query->where(function ($q) use ($request) {
+                $q->where('occurred_at', '>=', $request->input('from'))
+                  ->orWhere('created_at', '>=', $request->input('from'));
+            });
         }
 
         if ($request->filled('to')) {
-            $query->where('created_at', '<=', $request->input('to'));
+            $query->where(function ($q) use ($request) {
+                $q->where('occurred_at', '<=', $request->input('to'))
+                  ->orWhere('created_at', '<=', $request->input('to'));
+            });
+        }
+
+        if ($request->filled('session_uuid')) {
+            $query->where('session_uuid', $request->input('session_uuid'));
+        }
+
+        if ($request->filled('device_uuid')) {
+            $query->where('device_uuid', $request->input('device_uuid'));
+        }
+
+        if ($request->filled('route')) {
+            $query->where('route', $request->input('route'));
         }
 
         if ($request->filled('search')) {
             $search = '%' . $request->input('search') . '%';
             $query->where(function ($q) use ($search) {
                 $q->where('event_type', 'like', $search)
+                  ->orWhere('description', 'like', $search)
                   ->orWhere('ip_address', 'like', $search)
-                  ->orWhere('user_agent', 'like', $search);
+                  ->orWhere('user_agent', 'like', $search)
+                  ->orWhere('route', 'like', $search);
             });
         }
 

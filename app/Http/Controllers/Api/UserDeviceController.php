@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserDevice;
+use App\Services\SecurityEventService;
 
 class UserDeviceController extends Controller
 {
@@ -35,6 +36,13 @@ class UserDeviceController extends Controller
             'is_trusted' => true
         ]);
 
+        SecurityEventService::record(
+            eventType: SecurityEventService::DEVICE_TRUSTED,
+            severity: SecurityEventService::SEVERITY_LOW,
+            deviceUuid: $userDevice->device_uuid,
+            description: "Device {$userDevice->device_name} marked as trusted."
+        );
+
         return $userDevice;
     }
 
@@ -59,6 +67,13 @@ class UserDeviceController extends Controller
             ->update([
                 'revoked_at' => now()
             ]);
+
+        SecurityEventService::record(
+            eventType: SecurityEventService::DEVICE_BLOCKED,
+            severity: SecurityEventService::SEVERITY_HIGH,
+            deviceUuid: $userDevice->device_uuid,
+            description: "Device {$userDevice->device_name} blocked and associated sessions revoked."
+        );
 
         return $userDevice;
     }

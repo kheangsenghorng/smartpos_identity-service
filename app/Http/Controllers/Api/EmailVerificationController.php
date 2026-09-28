@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\EmailChangeVerificationMail;
 use App\Mail\VerifyEmailLinkMail;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -11,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Validation\Rule;
 
 class EmailVerificationController extends Controller
 {
@@ -177,6 +179,8 @@ class EmailVerificationController extends Controller
         return response()->json([
             'is_verified' => $user->email_verified_at !== null,
             'email_verified_at' => $user->email_verified_at?->toIso8601String(),
+            'pending_email' => $user->pending_email,
+            'pending_email_expires_at' => $user->pending_email_expires_at?->toIso8601String(),
         ]);
     }
 

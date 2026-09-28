@@ -9,6 +9,8 @@ class Permission extends Model
 {
     protected $fillable = [
         'uuid',
+        'permission_group_id',
+        'permission_resource_id',
         'code',
         'name',
         'module',
@@ -16,10 +18,14 @@ class Permission extends Model
         'action',
         'description',
         'is_active',
+        'sort_order',
     ];
 
     protected $casts = [
+        'permission_group_id' => 'integer',
+        'permission_resource_id' => 'integer',
         'is_active' => 'boolean',
+        'sort_order' => 'integer',
     ];
 
     protected static function booted(): void
@@ -54,5 +60,15 @@ class Permission extends Model
             Role::class,
             'role_permissions'
         )->withTimestamps();
+    }
+
+    public function permissionGroup()
+    {
+        return $this->belongsTo(PermissionGroup::class, 'permission_group_id');
+    }
+
+    public function permissionResource()
+    {
+        return $this->belongsTo(PermissionResource::class, 'permission_resource_id');
     }
 }
