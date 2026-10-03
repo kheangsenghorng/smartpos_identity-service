@@ -11,14 +11,16 @@ use Illuminate\Support\Facades\DB;
 class PermissionController extends Controller
 {
     /**
-     * List all permissions ordered by module and code.
+     * List all permissions ordered by module and code with pagination limit.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $perPage = min(max((int) $request->input('per_page', 10), 1), 100);
+
         return Permission::query()
             ->orderBy('module')
             ->orderBy('code')
-            ->paginate(50);
+            ->paginate($perPage);
     }
 
     /**
