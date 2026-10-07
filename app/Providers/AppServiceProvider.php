@@ -6,6 +6,7 @@ use App\Models\User;
 use Dedoc\Scramble\Scramble;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -27,6 +28,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Prohibit destructive database commands (migrate:fresh, db:wipe, migrate:reset, migrate:refresh, migrate:rollback)
+        DB::prohibitDestructiveCommands(
+            ! $this->app->environment('testing') && ! (bool) env('ALLOW_DESTRUCTIVE_COMMANDS', false)
+        );
+
         Gate::define('viewApiDocs', function (?User $user = null): bool {
             return true;
         });
